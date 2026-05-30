@@ -1,221 +1,232 @@
-/**
- * 【 Anu Clipboard AI Core 】
- * Creator  : rhmt
- * Base     : https://api.lexcode(.)biz.id/
- * Category : AI / Clipboard / Termux
- * Desc     : Core helper untuk clipboard AI agent di Android Termux
- * Channel  : https://whatsapp.com/channel/0029VbBjyjlJ93wa6hwSWa0p
- * Note : public endpoint fallback testing, bisa ditambah provider lain di config/providers.json
- */
-
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const ROOT_DIR = path.resolve(__dirname, "..");
+export const HOME = process.env.HOME || "/data/data/com.termux/files/home";
+export const APP_DIR = path.join(HOME, ".neuroclip");
+export const CONFIG_FILE = path.join(APP_DIR, "providers.json");
+export const MEMORY_FILE = path.join(APP_DIR, "memory.json");
+export const LAST_ANSWER_FILE = "/sdcard/termux/neuroclip-last-answer.txt";
+export const NOTIF_PENDING_ID = "7781";
+export const NOTIF_RESULT_ID = "7782";
+export const APP_NAME = "NeuroClip";
 
-export const APP_DIR = path.join(process.env.HOME || "/tmp", ".anu-agent");
-export const STATE_FILE = path.join(APP_DIR, "state.json");
-export const MODE_FILE = path.join(APP_DIR, "mode");
-export const PROVIDER_FILE = path.join(ROOT_DIR, "config", "providers.json");
-
-export const DEFAULT_PORT = 3030;
-
-export const MODE_MAP = {
-  default: "Jawab singkat, jelas, dan langsung. Jika pilihan ganda, balas jawaban terbaik saja.",
-  sd: "Jawab seperti anak SD. Gunakan bahasa sangat sederhana, pendek, dan mudah dipahami.",
-  smp: "Jawab seperti siswa SMP. Jelas, ringkas, dan mudah dihafal.",
-  sma: "Jawab seperti siswa SMA. Jawab agak lengkap tapi tetap padat.",
-  singkat: "Jawab sangat singkat. Langsung ke inti.",
-  detail: "Jawab lengkap, runtut, dan beri contoh jika perlu.",
-  formal: "Jawab dengan bahasa formal dan rapi.",
-  santai: "Jawab santai, natural, tapi tetap jelas.",
-  code: "Fokus pada solusi coding. Beri kode siap pakai jika relevan.",
-  wa: "Jawab dengan format singkat, padat, enak dibaca untuk WhatsApp.",
-  form: "Mode Google Form. Jawab langsung siap ditempel. Jika pilihan ganda, pilih opsi paling benar saja. Jika isian, jawab singkat tanpa penjelasan panjang.",
-  huruf: "Jika pertanyaan pilihan ganda, jawab hanya huruf opsi yang benar. Jangan tambah penjelasan."
+export const DEFAULT_PROVIDERS = {
+  chatgpt: {
+    url: "https://api.pixxxry.eu.cc/ai/chatgpt",
+    params: { model: "default" },
+    messageParam: "message",
+    extract: "result.result"
+  },
+  copilot: {
+    url: "https://api.pixxxry.eu.cc/ai/copilot",
+    params: { model: "default" },
+    messageParam: "message",
+    extract: "result.text"
+  },
+  deepseek: {
+    url: "https://api.pixxxry.eu.cc/ai/deepseek",
+    params: { model: "deepseek-chat", provider: "deepseek" },
+    messageParam: "message",
+    systemParam: "system",
+    extract: "result.result"
+  },
+  claude: {
+    url: "https://api.pixxxry.eu.cc/ai/claude",
+    params: { session: "default" },
+    messageParam: "message",
+    extract: "result.answer"
+  }
 };
 
-export function ensureAppDir() {
+export const DEFAULT_ROUTES = {
+  default: ["chatgpt", "deepseek", "claude"],
+  form: ["chatgpt", "deepseek", "claude"],
+  pilihanganda: ["chatgpt", "deepseek", "claude"],
+  opsi: ["chatgpt", "deepseek", "claude"],
+  singkat: ["chatgpt", "claude"],
+  sedang: ["chatgpt", "claude"],
+  lengkap: ["chatgpt", "deepseek", "claude"],
+  bahas: ["deepseek", "chatgpt", "claude"],
+  alasan: ["chatgpt", "deepseek", "claude"],
+  sd: ["claude", "chatgpt"],
+  smp: ["claude", "chatgpt"],
+  sma: ["claude", "chatgpt"],
+  formal: ["claude", "chatgpt"],
+  code: ["deepseek", "chatgpt", "copilot"],
+  math: ["deepseek", "chatgpt", "claude"],
+  wa: ["copilot", "claude", "chatgpt"],
+  ringkas: ["copilot", "claude", "chatgpt"],
+  rewrite: ["copilot", "claude", "chatgpt"]
+};
+
+export const MODE_PROMPTS = {
+  default: "Jawab singkat, jelas, dan langsung.",
+  form: "Mode Google Form. Jawab sesingkat mungkin dan siap ditempel. Jika pilihan ganda, jawab opsi terbaik saja. Jika isian singkat, jawab langsung tanpa penjelasan.",
+  pilihanganda: `Mode pilihan ganda. Analisis opsi yang tersedia. Balas dalam JSON valid saja:
+{"answer":"huruf opsi","display":"huruf + isi opsi","reason":"alasan singkat"}
+Jangan tambah teks lain di luar JSON.`,
+  opsi: "Jawab hanya huruf opsi yang benar. Contoh output: B. Jangan beri alasan.",
+  singkat: "Jawab sangat singkat. Maksimal 1-2 kalimat. Langsung ke inti.",
+  sedang: "Jawab sedang, 2-4 kalimat. Tidak terlalu pendek dan tidak terlalu panjang.",
+  lengkap: "Jawab lengkap, runtut, dan mudah dipahami. Berikan contoh jika perlu.",
+  bahas: "Berikan jawaban dan pembahasan singkat yang mudah dipahami.",
+  alasan: "Berikan alasan dari jawaban sebelumnya. Fokus pada kenapa jawaban itu benar. Jika ini pilihan ganda, boleh jelaskan kenapa opsi lain tidak tepat.",
+  sd: "Jawab seperti anak SD. Gunakan bahasa sangat sederhana, kalimat pendek, dan mudah dipahami.",
+  smp: "Jawab seperti siswa SMP. Jelas, sederhana, dan mudah dihafal.",
+  sma: "Jawab seperti siswa SMA. Lebih lengkap, tapi tetap padat dan rapi.",
+  formal: "Jawab dengan bahasa formal, rapi, dan sopan.",
+  code: "Mode coding. Fokus pada solusi teknis. Jika relevan, beri kode siap pakai. Jangan terlalu banyak teori.",
+  math: "Mode matematika. Tunjukkan langkah hitung dengan jelas dan pastikan hasil akhir benar.",
+  wa: "Format jawaban agar enak dibaca di WhatsApp. Gunakan paragraf pendek atau bullet sederhana.",
+  ringkas: "Ringkas teks menjadi versi pendek. Ambil inti utama saja.",
+  rewrite: "Tulis ulang teks agar lebih rapi, natural, dan enak dibaca."
+};
+
+export function ensureDir() {
   fs.mkdirSync(APP_DIR, { recursive: true });
+  fs.mkdirSync("/sdcard/termux", { recursive: true });
 }
 
-export function run(cmd, args = [], options = {}) {
+export function run(cmd, args = [], opts = {}) {
   const res = spawnSync(cmd, args, {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
-    ...options
+    ...opts
   });
 
   if (res.error) throw res.error;
-  if (res.status && options.throwOnError !== false) {
-    throw new Error(String(res.stderr || res.stdout || `${cmd} exited ${res.status}`).trim());
-  }
-
   return String(res.stdout || "").trim();
 }
 
-export function getClipboard() {
+export function termux(command, args = []) {
   try {
-    return run("termux-clipboard-get", [], { throwOnError: false }).trim();
+    return run(command, args);
   } catch {
     return "";
   }
 }
 
+export function getClipboard() {
+  return termux("termux-clipboard-get").trim();
+}
+
 export function setClipboard(text) {
-  try {
-    spawnSync("termux-clipboard-set", [String(text)], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"]
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function notify(title, text) {
-  try {
-    spawnSync("termux-notification", [
-      "--title",
-      String(title),
-      "--content",
-      String(text).slice(0, 900),
-      "--priority",
-      "high"
-    ], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"]
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function toast(text) {
-  try {
-    spawnSync("termux-toast", [String(text).slice(0, 300)], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"]
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-export function readJsonSafe(file, fallback) {
-  try {
-    return JSON.parse(fs.readFileSync(file, "utf8"));
-  } catch {
-    return fallback;
-  }
-}
-
-export function writeJsonSafe(file, data) {
-  ensureAppDir();
-  fs.writeFileSync(file, JSON.stringify(data, null, 2));
-}
-
-export function loadState() {
-  ensureAppDir();
-  return readJsonSafe(STATE_FILE, {
-    lastInput: "",
-    lastAnswer: "",
-    providerIndex: 0,
-    busy: false
+  spawnSync("termux-clipboard-set", [String(text ?? "")], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
   });
 }
 
-export function saveState(state) {
-  writeJsonSafe(STATE_FILE, state);
+export function toast(text) {
+  spawnSync("termux-toast", [String(text ?? "")], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  });
 }
 
-export function loadProviders() {
-  const cfg = readJsonSafe(PROVIDER_FILE, { providers: [] });
-  const providers = Array.isArray(cfg.providers) ? cfg.providers.filter(p => p?.enabled !== false) : [];
+export function wakeLock() {
+  termux("termux-wake-lock");
+}
 
-  if (!providers.length) {
-    return [
-      {
-        name: "lexcode-claude-3-haiku",
-        type: "get-query",
-        url: "https://api.lexcode.biz.id/api/ai/claude-3-haiku",
-        param: "text",
-        enabled: true
-      }
-    ];
+export function wakeUnlock() {
+  termux("termux-wake-unlock");
+}
+
+export function notify({ id, title, content, action = "", buttons = [] }) {
+  const args = [
+    "--id", String(id),
+    "--title", String(title),
+    "--content", String(content ?? "").slice(0, 900),
+    "--priority", "max"
+  ];
+
+  if (action) {
+    args.push("--action", action);
   }
 
-  return providers;
+  buttons.slice(0, 3).forEach((btn, i) => {
+    const n = i + 1;
+    args.push(`--button${n}`, String(btn.label));
+    args.push(`--button${n}-action`, String(btn.action));
+  });
+
+  spawnSync("termux-notification", args, {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  });
 }
 
-export function getMode() {
-  ensureAppDir();
-  try {
-    const mode = fs.readFileSync(MODE_FILE, "utf8").trim().toLowerCase();
-    return MODE_MAP[mode] ? mode : "default";
-  } catch {
-    return "default";
-  }
+export function removeNotif(id) {
+  spawnSync("termux-notification-remove", [String(id)], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  });
 }
 
-export function setMode(mode) {
-  ensureAppDir();
-  const clean = String(mode || "default").replace(/^\//, "").trim().toLowerCase();
-  const finalMode = MODE_MAP[clean] ? clean : "default";
-  fs.writeFileSync(MODE_FILE, finalMode);
-  return finalMode;
-}
-
-export function parseMode(input) {
-  const raw = String(input || "").trim();
-  const lower = raw.toLowerCase();
-
-  for (const mode of Object.keys(MODE_MAP)) {
-    const prefix = `/${mode}`;
-    if (lower === prefix || lower.startsWith(prefix + " ")) {
-      return {
-        mode,
-        instruction: MODE_MAP[mode],
-        question: raw.slice(prefix.length).trim()
-      };
-    }
-  }
-
-  const globalMode = getMode();
+export function defaultMemory() {
   return {
-    mode: globalMode,
-    instruction: MODE_MAP[globalMode] || MODE_MAP.default,
-    question: raw
+    active_mode: "default",
+    active_provider: "auto",
+    pending_text: "",
+    last_question: "",
+    last_answer: "",
+    last_display: "",
+    last_reason: "",
+    last_provider: "",
+    last_mode: "",
+    last_clip_seen: "",
+    updated_at: 0
   };
 }
 
-export function pickAnswer(data) {
-  if (typeof data === "string") return data;
+export function loadMemory() {
+  ensureDir();
 
-  return (
-    data?.result ||
-    data?.response ||
-    data?.answer ||
-    data?.message ||
-    data?.text ||
-    data?.data?.result ||
-    data?.data?.response ||
-    data?.data?.answer ||
-    data?.data?.message ||
-    data?.data?.text ||
-    JSON.stringify(data, null, 2)
-  );
+  try {
+    return { ...defaultMemory(), ...JSON.parse(fs.readFileSync(MEMORY_FILE, "utf8")) };
+  } catch {
+    return defaultMemory();
+  }
+}
+
+export function saveMemory(mem) {
+  ensureDir();
+  fs.writeFileSync(MEMORY_FILE, JSON.stringify({ ...mem, updated_at: Date.now() }, null, 2));
+}
+
+export function loadConfig() {
+  ensureDir();
+
+  try {
+    const data = JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8"));
+    return {
+      providers: normalizeProviders(data.providers || DEFAULT_PROVIDERS),
+      routes: data.routes || DEFAULT_ROUTES
+    };
+  } catch {
+    return {
+      providers: DEFAULT_PROVIDERS,
+      routes: DEFAULT_ROUTES
+    };
+  }
+}
+
+function normalizeProviders(rawProviders) {
+  const out = {};
+
+  for (const [name, p] of Object.entries(rawProviders)) {
+    out[name] = {
+      url: p.url,
+      params: p.params || {},
+      messageParam: p.message_param || p.messageParam || "message",
+      systemParam: p.system_param || p.systemParam || null,
+      extract: p.extract || "",
+      method: p.method || "GET"
+    };
+  }
+
+  return out;
 }
 
 export function cleanAnswer(input) {
@@ -229,108 +240,181 @@ export function cleanAnswer(input) {
   return text
     .replace(/\u001c[\s\S]*$/g, "")
     .replace(/\\u001c[\s\S]*$/g, "")
-    .replace(/\s*\{['\"]character_cooldown['\"]:\s*true\}\s*$/g, "")
+    .replace(/\s*\{['"]character_cooldown['"]:\s*true\}\s*$/g, "")
     .replace(/^["']|["']$/g, "")
     .trim();
 }
 
-export function buildPrompt(input) {
-  const { mode, instruction, question } = parseMode(input);
+export function getPathValue(obj, dotted) {
+  if (!dotted) return undefined;
 
-  const prompt = `${instruction}
-
-Konteks:
-- Kamu menjawab pertanyaan dari clipboard Android.
-- Jangan jelaskan bahwa kamu AI.
-- Jangan ulang pertanyaan kecuali memang perlu.
-- Kalau pertanyaan tidak jelas, jawab kemungkinan paling masuk akal.
-
-Pertanyaan:
-${question}`;
-
-  return { mode, question, prompt };
+  return dotted.split(".").reduce((acc, key) => {
+    if (acc == null) return undefined;
+    return acc[key];
+  }, obj);
 }
 
-async function askProvider(provider, prompt) {
-  if (provider.type === "post-json") {
-    const res = await fetch(provider.url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(provider.headers || {})
-      },
-      body: JSON.stringify({ text: prompt, prompt, q: prompt })
-    });
+export function extractAnswer(provider, data, conf = {}) {
+  const configured = getPathValue(data, conf.extract);
+  if (configured != null) return configured;
 
-    const raw = await res.text();
-    if (!res.ok) throw new Error(`${provider.name || provider.url}: HTTP ${res.status} ${raw.slice(0, 120)}`);
+  if (provider === "chatgpt") return data?.result?.result;
+  if (provider === "deepseek") return data?.result?.result;
+  if (provider === "claude") return data?.result?.answer;
+  if (provider === "copilot") return data?.result?.text;
 
-    try {
-      return pickAnswer(JSON.parse(raw));
-    } catch {
-      return raw;
-    }
-  }
+  return (
+    data?.result?.result ||
+    data?.result?.answer ||
+    data?.result?.text ||
+    data?.answer ||
+    data?.response ||
+    data?.message ||
+    data?.text ||
+    data?.result ||
+    JSON.stringify(data, null, 2)
+  );
+}
 
-  const param = provider.param || "text";
-  const url = new URL(provider.url);
-  url.searchParams.set(param, prompt);
+export function isBadAnswer(answer) {
+  const text = String(answer || "").trim().toLowerCase();
 
-  const res = await fetch(url);
-  const raw = await res.text();
-  if (!res.ok) throw new Error(`${provider.name || provider.url}: HTTP ${res.status} ${raw.slice(0, 120)}`);
+  if (!text) return true;
+  if (text.includes("text is required")) return true;
+  if (text.includes("rate limit")) return true;
+  if (text.includes("too many requests")) return true;
+  if (text.includes("internal server error")) return true;
+  if (text.includes("cannot read")) return true;
+  if (text.includes("undefined")) return true;
+
+  return false;
+}
+
+export function parseJsonObject(text) {
+  const raw = String(text || "")
+    .trim()
+    .replace(/^```json/i, "")
+    .replace(/^```/i, "")
+    .replace(/```$/i, "")
+    .trim();
 
   try {
-    return pickAnswer(JSON.parse(raw));
-  } catch {
-    return raw;
-  }
-}
+    return JSON.parse(raw);
+  } catch {}
 
-export async function askAI(input) {
-  const { mode, question, prompt } = buildPrompt(input);
-  const providers = loadProviders();
-  const state = loadState();
-  const start = Number(state.providerIndex || 0) % providers.length;
-  const errors = [];
-
-  for (let i = 0; i < providers.length; i++) {
-    const idx = (start + i) % providers.length;
-    const provider = providers[idx];
-
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (match) {
     try {
-      const raw = await askProvider(provider, prompt);
-      const answer = cleanAnswer(raw);
-
-      state.providerIndex = (idx + 1) % providers.length;
-      saveState(state);
-
-      return {
-        status: true,
-        provider: provider.name || provider.url,
-        mode,
-        question,
-        answer
-      };
-    } catch (err) {
-      errors.push(`${provider.name || provider.url}: ${err?.message || err}`);
-    }
+      return JSON.parse(match[0]);
+    } catch {}
   }
 
-  throw new Error(`Semua provider gagal: ${errors.join(" | ")}`);
+  return null;
 }
 
-export function shouldIgnoreClipboard(text, state = loadState()) {
-  const raw = String(text || "").trim();
+export function normalizeMode(input = "") {
+  const raw = String(input).trim().toLowerCase();
 
+  const map = {
+    "default": "default",
+    "form": "form",
+    "google form": "form",
+    "pilihan ganda": "pilihanganda",
+    "pg": "pilihanganda",
+    "pilihanganda": "pilihanganda",
+    "opsi": "opsi",
+    "jawaban saja": "opsi",
+    "huruf saja": "opsi",
+    "anak sd": "sd",
+    "sd": "sd",
+    "smp": "smp",
+    "sma": "sma",
+    "singkat": "singkat",
+    "sedang": "sedang",
+    "lengkap": "lengkap",
+    "detail": "lengkap",
+    "panjang": "lengkap",
+    "formal": "formal",
+    "code": "code",
+    "coding": "code",
+    "math": "math",
+    "matematika": "math",
+    "wa": "wa",
+    "whatsapp": "wa",
+    "ringkas": "ringkas",
+    "rewrite": "rewrite",
+    "alasan": "alasan",
+    "bahas": "bahas"
+  };
+
+  return map[raw] || raw.replace(/[^a-z0-9]/g, "");
+}
+
+export function parseInstruction(text) {
+  const raw = String(text || "").trim();
+  const lower = raw.toLowerCase();
+
+  if (!raw) return { type: "empty" };
+
+  const resetWords = ["/reset", "reset", "clear", "hapus memory", "bersihkan memory"];
+  if (resetWords.includes(lower)) return { type: "reset", full: false };
+
+  const resetFullWords = ["/reset full", "reset full", "full reset"];
+  if (resetFullWords.includes(lower)) return { type: "reset", full: true };
+
+  if (lower.startsWith("/")) {
+    const mode = normalizeMode(lower.slice(1).split(/\s+/)[0]);
+    const rest = raw.split(/\s+/).slice(1).join(" ").trim();
+    return { type: "mode_or_run", mode, rest };
+  }
+
+  if (lower.startsWith("mode ")) {
+    const mode = normalizeMode(raw.slice(5).trim());
+    return { type: "set_mode", mode };
+  }
+
+  if (["alasan", "tampilkan alasan", "kenapa", "mengapa"].includes(lower)) {
+    return { type: "reason" };
+  }
+
+  return { type: "followup", instruction: raw };
+}
+
+export function resetContext({ full = false } = {}) {
+  const old = loadMemory();
+
+  if (full) {
+    saveMemory(defaultMemory());
+    return defaultMemory();
+  }
+
+  const mem = {
+    ...old,
+    pending_text: "",
+    last_question: "",
+    last_answer: "",
+    last_display: "",
+    last_reason: "",
+    last_provider: "",
+    last_mode: "",
+    last_clip_seen: ""
+  };
+
+  saveMemory(mem);
+  return mem;
+}
+
+export function shouldIgnoreClipboard(text, mem) {
+  const raw = String(text || "").trim();
   if (!raw) return true;
-  if (raw.length < 4) return true;
-  if (raw === state.lastInput) return true;
-  if (raw === state.lastAnswer) return true;
+  if (raw.length < 2) return true;
+  if (raw === mem.last_answer) return true;
+  if (raw === mem.last_display) return true;
+  if (raw === mem.last_reason) return true;
+  if (raw === mem.last_clip_seen) return true;
 
   const lower = raw.toLowerCase();
-  const ignoredStarts = [
-    "http://127.0.0.1",
+  const ignored = [
     "curl ",
     "node ",
     "npm ",
@@ -341,26 +425,178 @@ export function shouldIgnoreClipboard(text, state = loadState()) {
     "tail ",
     "grep ",
     "nano ",
-    "termux-clipboard",
     "nohup ",
-    "pkill "
+    "pkill ",
+    "termux-clipboard",
+    "http://127.0.0.1"
   ];
 
-  if (ignoredStarts.some(x => lower.startsWith(x))) return true;
-
-  return false;
+  return ignored.some(x => lower.startsWith(x));
 }
 
-export async function processInput(input, source = "manual") {
-  const result = await askAI(input);
+export function buildPrompt({ mode, question, extraInstruction = "", mem = {} }) {
+  const modePrompt = MODE_PROMPTS[mode] || MODE_PROMPTS.default;
 
-  setClipboard(result.answer);
-  notify(`AI Jawaban ${result.mode}`, result.answer);
+  return `Tugasmu adalah menjawab teks clipboard Android secara langsung dan ringkas.
 
-  const state = loadState();
-  state.lastInput = String(input || "").trim();
-  state.lastAnswer = result.answer;
-  saveState(state);
+Aturan utama:
+- Gunakan bahasa Indonesia natural.
+- Langsung jawab inti; jangan membuka dengan perkenalan nama/model/provider.
+- Jangan ulang pertanyaan kecuali perlu.
+- Jika pilihan ganda, pilih jawaban terbaik.
+- Jika mode form/opsi, jawab singkat dan siap ditempel.
+- Jika pertanyaan tidak jelas, jawab kemungkinan paling masuk akal.
+- Jika teks adalah command terminal atau path file, jangan jalankan apa pun.
+- Jangan terlalu panjang kecuali mode lengkap/bahas.
+- Ikuti mode aktif dengan ketat.
 
-  return { ...result, source };
+Mode aktif:
+${mode}
+
+Instruksi mode:
+${modePrompt}
+
+Instruksi tambahan:
+${extraInstruction || "-"}
+
+Konteks terakhir:
+Pertanyaan terakhir: ${mem.last_question || "-"}
+Jawaban terakhir: ${mem.last_answer || "-"}
+Alasan terakhir: ${mem.last_reason || "-"}
+
+Pertanyaan/teks:
+${question}`;
+}
+
+export async function callProvider(provider, prompt, mode = "default") {
+  const { providers } = loadConfig();
+  const conf = providers[provider];
+
+  if (!conf) throw new Error(`Provider tidak dikenal: ${provider}`);
+
+  const url = new URL(conf.url);
+  url.searchParams.set(conf.messageParam || "message", prompt);
+
+  for (const [k, v] of Object.entries(conf.params || {})) {
+    url.searchParams.set(k, v);
+  }
+
+  if (conf.systemParam) {
+    url.searchParams.set(conf.systemParam, MODE_PROMPTS[mode] || MODE_PROMPTS.default);
+  }
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 25000);
+
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    const raw = await res.text();
+
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      data = raw;
+    }
+
+    const answer = cleanAnswer(extractAnswer(provider, data, conf));
+    if (!res.ok || isBadAnswer(answer)) {
+      throw new Error(`Bad answer from ${provider}`);
+    }
+
+    return { provider, answer, raw: data };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function askRouter({ mode, question, extraInstruction = "" }) {
+  const mem = loadMemory();
+  const { routes } = loadConfig();
+
+  const activeMode = normalizeMode(mode || mem.active_mode || "default") || "default";
+  const prompt = buildPrompt({ mode: activeMode, question, extraInstruction, mem });
+
+  const route = mem.active_provider !== "auto"
+    ? [mem.active_provider]
+    : (routes[activeMode] || DEFAULT_ROUTES[activeMode] || DEFAULT_ROUTES.default);
+
+  let lastError = "";
+
+  for (const provider of route) {
+    try {
+      const result = await callProvider(provider, prompt, activeMode);
+      const json = parseJsonObject(result.answer);
+
+      let answer = result.answer;
+      let display = result.answer;
+      let reason = "";
+
+      if (json && (json.answer || json.display || json.reason)) {
+        answer = json.answer || json.display || result.answer;
+        display = json.display || json.answer || result.answer;
+        reason = json.reason || "";
+      }
+
+      if (activeMode === "form" && json?.display) answer = json.display;
+      if (activeMode === "opsi" && json?.answer) answer = json.answer;
+      if (activeMode === "pilihanganda" && json?.display) answer = json.display;
+
+      const clean = cleanAnswer(answer);
+      const cleanDisplay = cleanAnswer(display);
+      const cleanReason = cleanAnswer(reason);
+
+      const newMem = loadMemory();
+      newMem.last_question = question;
+      newMem.last_answer = clean;
+      newMem.last_display = cleanDisplay;
+      newMem.last_reason = cleanReason || "";
+      newMem.last_provider = result.provider;
+      newMem.last_mode = activeMode;
+      saveMemory(newMem);
+
+      return {
+        status: true,
+        mode: activeMode,
+        provider: result.provider,
+        answer: clean,
+        display: cleanDisplay,
+        reason: cleanReason
+      };
+    } catch (e) {
+      lastError = e?.message || String(e);
+    }
+  }
+
+  throw new Error(`Semua provider gagal. Last: ${lastError}`);
+}
+
+export function showPendingNotification(text) {
+  const mem = loadMemory();
+
+  notify({
+    id: NOTIF_PENDING_ID,
+    title: `${APP_NAME} • Mode ${mem.active_mode}`,
+    content: `Teks disalin:\n${String(text).slice(0, 220)}`,
+    action: `${HOME}/.shortcuts/neuro-menu`,
+    buttons: [
+      { label: "Jawab", action: `${HOME}/.shortcuts/neuro-answer` },
+      { label: "Balas", action: `${HOME}/.shortcuts/neuro-reply` },
+      { label: "Tutup", action: `${HOME}/.shortcuts/neuro-close` }
+    ]
+  });
+}
+
+export function showResultNotification(result) {
+  notify({
+    id: NOTIF_RESULT_ID,
+    title: `AI Jawaban • ${result.mode}/${result.provider}`,
+    content: result.display || result.answer,
+    action: `${HOME}/.shortcuts/neuro-menu`,
+    buttons: [
+      { label: "Lihat", action: `${HOME}/.shortcuts/neuro-view` },
+      { label: "Balas", action: `${HOME}/.shortcuts/neuro-reply` },
+      { label: "Tutup", action: `${HOME}/.shortcuts/neuro-close` }
+    ]
+  });
 }
