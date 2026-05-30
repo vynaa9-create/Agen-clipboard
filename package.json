@@ -1,0 +1,26 @@
+{
+  "name": "anu-clipboard-ai-agent",
+  "version": "1.0.0",
+  "description": "Android Termux clipboard AI agent: copy text, auto send to AI, answer back to clipboard + notification.",
+  "type": "module",
+  "main": "src/cli.mjs",
+  "scripts": {
+    "anu": "node src/cli.mjs",
+    "watch": "node src/watch.mjs",
+    "server": "node src/server.mjs",
+    "mode": "node src/mode.mjs",
+    "check": "node --check src/*.mjs"
+  },
+  "keywords": [
+    "termux",
+    "clipboard",
+    "android",
+    "ai-agent",
+    "automation"
+  ],
+  "author": "rhmt",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}
