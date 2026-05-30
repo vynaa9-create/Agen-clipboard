@@ -1,43 +1,161 @@
-#!/usr/bin/env node
-/**
- * 【 Anu Agen CLI 】
- * Creator  : rhmt
- * Base     : https://api.lexcode(.)biz.id/
- * Category : AI / Clipboard / Termux
- * Desc     : CLI: baca argumen/clipboard, kirim ke AI, output ke clipboard + notif
- * Channel  : https://whatsapp.com/channel/0029VbBjyjlJ93wa6hwSWa0p
- */
+import { spawnSync } from "node:child_process";
+import {
+  HOME,
+  APP_NAME,
+  getClipboard,
+  setClipboard,
+  wakeLock,
+  wakeUnlock,
+  toast,
+  askRouter,
+  loadMemory,
+  saveMemory,
+  resetContext,
+  normalizeMode,
+  removeNotif,
+  NOTIF_PENDING_ID,
+  NOTIF_RESULT_ID
+} from "./core.mjs";
 
-import { getClipboard, notify, processInput } from "./core.mjs";
+function spawnBg(args, logFile) {
+  spawnSync("sh", ["-lc", `nohup node "$HOME/.neuroclip/src/watch-confirm.mjs" > "$HOME/${logFile}" 2>&1 &`], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+}
+
+function killWatcher() {
+  spawnSync("pkill", ["-f", "watch-confirm.mjs"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+}
+
+function pgrep() {
+  const res = spawnSync("pgrep", ["-af", "watch-confirm.mjs"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+  return String(res.stdout || "").trim();
+}
+
+function usage() {
+  console.log(`${APP_NAME} CLI
+
+Pakai:
+  neuro on                 aktifkan clipboard watcher
+  neuro off                matikan clipboard watcher
+  neuro status             cek status
+  neuro log                lihat log watcher
+  neuro reset              hapus konteks memory
+  neuro reset full         hapus semua memory termasuk mode
+  neuro mode               lihat mode aktif
+  neuro mode form          set mode aktif
+  neuro run "teks"         jawab sekali
+  neuro clip               jawab isi clipboard sekali
+
+Mode:
+  default, form, pilihanganda, opsi, sd, smp, sma, singkat, sedang,
+  lengkap, formal, code, math, wa, ringkas, rewrite`);
+}
+
+async function runOnce(text) {
+  const input = text || getClipboard();
+  if (!input) {
+    console.log("Input kosong.");
+    toast("Input kosong.");
+    return;
+  }
+
+  const mem = loadMemory();
+  const result = await askRouter({
+    mode: mem.active_mode || "default",
+    question: input
+  });
+
+  setClipboard(result.answer);
+  console.log(result.answer);
+  toast("Jawaban masuk clipboard.");
+}
 
 async function main() {
-  try {
-    const cliInput = process.argv.slice(2).join(" ").trim();
-    const input = cliInput || getClipboard();
+  const [cmd, ...rest] = process.argv.slice(2);
 
-    if (!input) {
-      console.log("Clipboard kosong.");
-      notify("Anu Agen", "Clipboard kosong.");
-      return;
+  switch ((cmd || "").toLowerCase()) {
+    case "on":
+    case "start":
+      killWatcher();
+      wakeLock();
+      spawnBg([], "neuroclip-watch.log");
+      toast("NeuroClip ON");
+      console.log("NeuroClip ON");
+      break;
+
+    case "off":
+    case "stop":
+      killWatcher();
+      removeNotif(NOTIF_PENDING_ID);
+      removeNotif(NOTIF_RESULT_ID);
+      wakeUnlock();
+      toast("NeuroClip OFF");
+      console.log("NeuroClip OFF");
+      break;
+
+    case "status": {
+      const out = pgrep();
+      console.log(out ? `NeuroClip ON\n${out}` : "NeuroClip OFF");
+      break;
     }
 
-    console.log("\n[ Input Terbaca ]\n");
-    console.log(input);
-    console.log("\n[ Proses AI... ]\n");
+    case "log":
+      spawnSync("tail", ["-f", `${HOME}/neuroclip-watch.log`], {
+        encoding: "utf8",
+        stdio: "inherit"
+      });
+      break;
 
-    const result = await processInput(input, cliInput ? "cli" : "clipboard");
+    case "reset":
+      resetContext({ full: rest.join(" ").trim() === "full" });
+      removeNotif(NOTIF_PENDING_ID);
+      removeNotif(NOTIF_RESULT_ID);
+      toast(rest.join(" ").trim() === "full" ? "Memory full reset." : "Memory konteks dibersihkan.");
+      console.log(rest.join(" ").trim() === "full" ? "Memory full reset." : "Memory konteks dibersihkan.");
+      break;
 
-    console.log(`[ Mode: ${result.mode} | Provider: ${result.provider} ]\n`);
-    console.log("[ Jawaban ]\n");
-    console.log(result.answer);
-    console.log("\n[ OK ] Jawaban sudah masuk clipboard + notifikasi.");
-  } catch (err) {
-    const msg = err?.message || String(err);
-    console.log("\n[ ERROR ]");
-    console.log(msg);
-    notify("Anu Agen Error", msg);
-    process.exitCode = 1;
+    case "mode": {
+      const input = rest.join(" ").trim();
+      const mem = loadMemory();
+
+      if (!input) {
+        console.log(mem.active_mode || "default");
+        return;
+      }
+
+      mem.active_mode = normalizeMode(input) || "default";
+      saveMemory(mem);
+      toast(`Mode aktif: ${mem.active_mode}`);
+      console.log(`Mode aktif: ${mem.active_mode}`);
+      break;
+    }
+
+    case "run":
+      await runOnce(rest.join(" ").trim());
+      break;
+
+    case "clip":
+      await runOnce("");
+      break;
+
+    case "help":
+    case "--help":
+    case "-h":
+    default:
+      usage();
+      break;
   }
 }
 
-main();
+main().catch(e => {
+  console.error(e);
+  toast(`NeuroClip error: ${e.message}`);
+});
