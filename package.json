@@ -1,26 +1,31 @@
 {
-  "name": "anu-clipboard-ai-agent",
-  "version": "1.0.0",
-  "description": "Android Termux clipboard AI agent: copy text, auto send to AI, answer back to clipboard + notification.",
+  "name": "agen-clipboard-neuroclip",
+  "version": "2.0.0",
+  "description": "Clipboard AI copilot for Android Termux: copy text, confirm via notification, answer via AI, return to clipboard.",
   "type": "module",
   "main": "src/cli.mjs",
+  "bin": {
+    "neuro": "bin/neuro"
+  },
   "scripts": {
-    "anu": "node src/cli.mjs",
-    "watch": "node src/watch.mjs",
-    "server": "node src/server.mjs",
-    "mode": "node src/mode.mjs",
-    "check": "node --check src/*.mjs"
+    "check": "node --check src/core.mjs && node --check src/watch-confirm.mjs && node --check src/answer.mjs && node --check src/reply.mjs && node --check src/menu.mjs && node --check src/reason.mjs && node --check src/view.mjs && node --check src/reset.mjs && node --check src/mode.mjs && node --check src/cli.mjs",
+    "start": "node src/watch-confirm.mjs",
+    "run": "node src/cli.mjs run",
+    "status": "node src/cli.mjs status"
   },
   "keywords": [
     "termux",
     "clipboard",
     "android",
-    "ai-agent",
-    "automation"
+    "ai",
+    "automation",
+    "notification",
+    "agent"
   ],
-  "author": "rhmt",
+  "author": "vynaa9-create",
   "license": "MIT",
-  "engines": {
-    "node": ">=18"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vynaa9-create/Agen-clipboard.git"
   }
 }
