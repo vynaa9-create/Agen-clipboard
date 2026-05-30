@@ -1,153 +1,309 @@
-# Anu Clipboard AI Agent
+# NeuroClip Agent
 
-Android Termux agent untuk flow:
+**NeuroClip** adalah clipboard AI copilot untuk Android + Termux.
+
+GitHub: https://github.com/vynaa9-create/Agen-clipboard
+
+Flow utamanya:
 
 ```txt
-salin teks / trigger sesuatu
+Salin teks
 ↓
-AI proses otomatis
+Notif muncul
 ↓
-jawaban masuk clipboard + notifikasi
+Tap notif = buka menu modular
+atau buka panel notif = Jawab / Balas / Tutup
 ↓
-tinggal paste
+AI menjawab
+↓
+Jawaban masuk clipboard
+↓
+Paste
 ```
 
-Dibuat untuk workflow HP/Termux yang ringan, tanpa root, dan bisa dipakai dengan Termux:Widget atau watcher clipboard.
+Project ini dibuat untuk workflow pribadi/testing: copy pertanyaan, kirim ke endpoint AI publik, lalu hasilnya otomatis balik ke clipboard.
 
 ---
 
 ## Fitur
 
-- Ambil teks dari clipboard Android.
-- Kirim ke AI public endpoint.
-- Jawaban otomatis masuk clipboard.
-- Jawaban juga muncul sebagai notifikasi.
-- Mode jawaban: `default`, `sd`, `smp`, `sma`, `singkat`, `detail`, `formal`, `santai`, `code`, `wa`, `form`, `huruf`.
-- Watcher otomatis: cukup salin teks, AI langsung jalan.
-- Termux:Widget: tap widget untuk proses clipboard.
-- Server lokal untuk MacroDroid/HTTP trigger.
-- Provider AI bisa dirotasi lewat `config/providers.json`.
+- Clipboard watcher: deteksi teks baru yang disalin.
+- Confirm mode: tidak langsung spam endpoint.
+- Notifikasi modular:
+  - `Jawab`
+  - `Balas`
+  - `Tutup`
+  - setelah jawab: `Lihat`, `Balas`, `Tutup`
+- Tap body notif membuka menu.
+- Memory lokal:
+  - mode aktif
+  - pending text
+  - jawaban terakhir
+  - alasan terakhir
+- Provider router + fallback:
+  - ChatGPT endpoint
+  - DeepSeek endpoint
+  - Claude endpoint
+  - Copilot endpoint
+- Mode jawaban:
+  - `default`
+  - `form`
+  - `pilihanganda`
+  - `opsi`
+  - `sd`
+  - `smp`
+  - `sma`
+  - `singkat`
+  - `sedang`
+  - `lengkap`
+  - `formal`
+  - `code`
+  - `math`
+  - `wa`
+  - `ringkas`
+  - `rewrite`
+- Command simpel:
+  - `neuro on`
+  - `neuro off`
+  - `neuro status`
+  - `neuro mode form`
+  - `neuro reset`
+
+
+## Install cepat copy-paste
+
+```bash
+pkg update -y
+pkg install nodejs termux-api git -y
+termux-setup-storage
+git clone https://github.com/vynaa9-create/Agen-clipboard.git
+cd Agen-clipboard
+bash scripts/setup-termux.sh
+neuro on
+```
+
+Setelah itu tinggal salin teks, tap notifikasi NeuroClip, lalu pilih menu.
 
 ---
 
-## Kebutuhan
+## Syarat
 
-Install di Android:
+Install aplikasi:
 
 - Termux
 - Termux:API
-- Termux:Widget, opsional tapi direkomendasikan
+- Termux:Widget opsional
 
 Di Termux:
 
 ```bash
 pkg update -y
-pkg install git nodejs termux-api -y
+pkg install nodejs termux-api git -y
 termux-setup-storage
 ```
 
-Cek clipboard:
+Pastikan clipboard dan notif jalan:
 
 ```bash
 termux-clipboard-set "halo"
 termux-clipboard-get
+termux-notification --title "TEST" --content "Notif hidup"
 ```
+
+Kalau notif tidak muncul, aktifkan permission notifikasi untuk **Termux** dan **Termux:API**.
 
 ---
 
 ## Install dari GitHub
 
 ```bash
-git clone https://github.com/USERNAME/anu-clipboard-ai-agent.git
-cd anu-clipboard-ai-agent
+git clone https://github.com/vynaa9-create/Agen-clipboard.git
+cd Agen-clipboard
 bash scripts/setup-termux.sh
-source ~/.bashrc
 ```
 
-Test:
+Cek:
 
 ```bash
-anu /sd apa dampak deforestasi?
-termux-clipboard-get
-```
-
-Kalau berhasil, jawaban akan masuk clipboard + muncul notifikasi.
-
----
-
-## Cara pakai mode CLI
-
-Langsung tanya:
-
-```bash
-anu siapa presiden ke 2 indonesia
-```
-
-Pakai clipboard:
-
-```bash
-termux-clipboard-set "/sd apa dampak deforestasi?"
-anu
-```
-
-Mode prefix:
-
-```bash
-anu /singkat siapa presiden ke 2 indonesia?
-anu /sd apa dampak deforestasi?
-anu /detail jelaskan dampak deforestasi
-anu /code buat contoh fetch nodejs esm
-anu /form Pilih jawaban benar: A. JSON.stringify B. JSON.parse C. JSON.object
-anu /huruf Pilih jawaban benar: A. const B. let C. static
+neuro status
 ```
 
 ---
 
-## Mode global tanpa nambah prefix
+## Cara pakai cepat
 
-Mode global berguna kalau kamu tidak mau edit teks yang disalin.
-
-Set mode:
+Aktifkan watcher:
 
 ```bash
-anu-mode sd
+neuro on
 ```
 
-Lalu cukup salin teks biasa:
+Lalu salin teks apa pun, misalnya:
 
 ```txt
-apa dampak deforestasi?
+We use my eyes for ...
+A. see
+B. eat
+C. kick
+D. listen
 ```
 
-Jalankan:
+Akan muncul notifikasi NeuroClip.
+
+Aksi:
+
+```txt
+Tap notif        → buka menu
+Jawab            → proses AI
+Balas            → kasih instruksi baru
+Tutup            → abaikan
+```
+
+Setelah AI menjawab:
+
+```txt
+Jawaban masuk clipboard
+↓
+Paste di tempat yang dibutuhkan
+```
+
+Matikan watcher:
 
 ```bash
-anu
+neuro off
 ```
 
-Cek mode:
+---
+
+## Command utama
 
 ```bash
-anu-mode list
+neuro on
+neuro off
+neuro status
+neuro log
+neuro reset
+neuro reset full
+neuro mode
+neuro mode form
+neuro run "siapa presiden ke 2 indonesia"
+neuro clip
 ```
 
-Balik default:
+Keterangan:
+
+| Command | Fungsi |
+|---|---|
+| `neuro on` | aktifkan clipboard watcher |
+| `neuro off` | matikan watcher dan bersihkan notif |
+| `neuro status` | cek hidup/mati |
+| `neuro log` | lihat log watcher |
+| `neuro reset` | hapus konteks lama |
+| `neuro reset full` | hapus semua memory termasuk mode |
+| `neuro mode form` | set mode aktif |
+| `neuro run "teks"` | jawab teks langsung |
+| `neuro clip` | jawab isi clipboard sekali |
+
+---
+
+## Mode memory
+
+Mode disimpan di memory lokal:
+
+```txt
+~/.neuroclip/memory.json
+```
+
+Jadi cukup set sekali:
 
 ```bash
-anu-mode default
+neuro mode form
 ```
+
+Setelah itu semua teks yang disalin diproses sebagai mode form sampai mode diganti lagi.
+
+Contoh mode:
+
+```bash
+neuro mode form
+neuro mode pilihanganda
+neuro mode opsi
+neuro mode sd
+neuro mode lengkap
+neuro mode code
+```
+
+---
+
+## Menu Balas
+
+Saat notif muncul, tap body notif lalu isi salah satu:
+
+```txt
+jawab
+balas
+alasan
+lihat
+tutup
+reset
+reset full
+mode form
+mode sd
+mode pilihan ganda
+```
+
+Atau instruksi natural:
+
+```txt
+apa arti dalam kbbi
+kenapa bukan A?
+jelaskan lebih singkat
+buat bahasa anak SD
+ada pembahasan lain
+ubah ke bahasa Inggris
+```
+
+---
+
+## Provider AI
+
+Endpoint dikonfigurasi di:
+
+```txt
+config/providers.json
+```
+
+Default:
+
+| Provider | Peran |
+|---|---|
+| chatgpt | default, form, pilihan ganda, fakta umum |
+| deepseek | coding, matematika, logika |
+| claude | bahasa natural, SD/SMP/SMA, formal |
+| copilot | rewrite, ringkas, WhatsApp |
+
+Router fallback contoh:
+
+```txt
+form         → chatgpt → deepseek → claude
+code         → deepseek → chatgpt → copilot
+sd           → claude → chatgpt
+ringkas      → copilot → claude → chatgpt
+```
+
+Kalau provider pertama gagal, NeuroClip otomatis mencoba provider berikutnya.
 
 ---
 
 ## Termux:Widget
 
-Bikin shortcut widget:
+Buat shortcut widget:
 
 ```bash
 bash scripts/setup-widget.sh
 ```
 
-Di home screen Android:
+Lalu di home screen:
 
 ```txt
 Tahan layar kosong
@@ -156,191 +312,97 @@ Widget
 ↓
 Termux:Widget
 ↓
-pilih shortcut
-```
-
-Shortcut yang dibuat:
-
-```txt
-anu                 proses clipboard sekali
-anu-watch-start     nyalakan auto watcher
-anu-watch-stop      matikan auto watcher
-anu-server-start    nyalakan server lokal
-anu-server-stop     matikan server lokal
-mode-default
-mode-sd
-mode-form
-mode-detail
-mode-singkat
-mode-code
-mode-huruf
-...
-```
-
-Flow widget sekali proses:
-
-```txt
-salin pertanyaan
-↓
-tap widget anu
-↓
-jawaban masuk clipboard + notif
-↓
-paste
-```
-
-Flow mode tetap:
-
-```txt
-tap widget mode-form
-↓
-salin pertanyaan biasa
-↓
-tap widget anu
-↓
-jawaban mode form masuk clipboard
+Pilih neuro-on / neuro-off
 ```
 
 ---
 
-## Auto Watcher, salin langsung jalan
+## Tips agar stabil di Oppo/ColorOS
 
-Ini yang paling dekat dengan target utama:
+Matikan battery optimization untuk:
 
-```txt
-salin teks
-↓
-watcher Termux deteksi clipboard
-↓
-otomatis kirim ke AI
-↓
-jawaban masuk clipboard + notif
-```
+- Termux
+- Termux:API
 
-Jalankan watcher:
-
-```bash
-anu-watch
-```
-
-Atau background:
-
-```bash
-termux-wake-lock
-nohup anu-watch > ~/.anu-agent/watch.log 2>&1 &
-```
-
-Cek log:
-
-```bash
-tail -f ~/.anu-agent/watch.log
-```
-
-Matikan watcher:
-
-```bash
-pkill -f "src/watch.mjs"
-termux-wake-unlock
-```
-
-Kalau pakai Termux:Widget, cukup tap:
+Aktifkan:
 
 ```txt
-anu-watch-start
+Allow background activity
+Autostart jika ada
+Izinkan notifikasi
 ```
 
-Untuk mematikan:
+Gunakan:
 
-```txt
-anu-watch-stop
+```bash
+neuro on
 ```
+
+untuk menahan wake lock selama watcher aktif.
 
 ---
 
-## Server lokal untuk MacroDroid
+## Troubleshooting
 
-Jalankan server:
+### Notif tidak muncul
 
-```bash
-anu-server
-```
-
-Atau background:
+Test:
 
 ```bash
-termux-wake-lock
-nohup anu-server > ~/.anu-agent/server.log 2>&1 &
+termux-notification --title "TEST" --content "Notif hidup"
 ```
+
+Kalau tidak muncul, cek izin notifikasi Termux dan Termux:API.
+
+### Tombol notif tidak kelihatan
+
+Di beberapa HP, tombol hanya muncul kalau panel notifikasi ditarik/di-expand.
+
+Solusi:
+- Tap body notif untuk membuka menu.
+- Atau buka panel notif untuk tombol `Jawab/Balas/Tutup`.
+
+### Jawaban nyangkut ke konteks lama
+
+Gunakan:
+
+```bash
+neuro reset
+```
+
+atau lewat menu:
+
+```txt
+reset
+```
+
+### Mode salah
 
 Cek:
 
 ```bash
-curl http://127.0.0.1:3030
+neuro mode
 ```
 
-Run dari clipboard:
+Ubah:
 
 ```bash
-curl http://127.0.0.1:3030/run
+neuro mode default
 ```
 
-Run dengan teks langsung:
+### Provider error
+
+Lihat log:
 
 ```bash
-curl "http://127.0.0.1:3030/run?text=/sd%20apa%20dampak%20deforestasi%3F"
+neuro log
 ```
 
-MacroDroid HTTP Request:
+Ganti endpoint di `config/providers.json`, lalu ulangi setup:
 
-```txt
-Method: GET
-URL: http://127.0.0.1:3030/run
+```bash
+bash scripts/setup-termux.sh
 ```
-
----
-
-## Provider dan rotate endpoint
-
-Edit:
-
-```txt
-config/providers.json
-```
-
-Default:
-
-```json
-{
-  "providers": [
-    {
-      "name": "lexcode-claude-3-haiku",
-      "type": "get-query",
-      "url": "https://api.lexcode.biz.id/api/ai/claude-3-haiku",
-      "param": "text",
-      "enabled": true
-    }
-  ]
-}
-```
-
-Tambah provider lain:
-
-```json
-{
-  "name": "provider-2",
-  "type": "get-query",
-  "url": "https://example.com/api/ai",
-  "param": "text",
-  "enabled": true
-}
-```
-
-Sistem akan mencoba provider secara rotasi. Kalau provider pertama gagal, lanjut provider berikutnya.
-
-Tipe provider yang didukung:
-
-- `get-query`: prompt dikirim via query param.
-- `post-json`: prompt dikirim via JSON body `{ text, prompt, q }`.
 
 ---
 
@@ -349,67 +411,17 @@ Tipe provider yang didukung:
 ```bash
 git init
 git add .
-git commit -m "initial commit"
+git commit -m "Initial NeuroClip Agent"
 git branch -M main
-git remote add origin https://github.com/USERNAME/anu-clipboard-ai-agent.git
+git remote add origin https://github.com/username/neuroclip-agent.git
 git push -u origin main
 ```
 
 ---
 
-## Troubleshooting
+## Catatan
 
-### Clipboard tidak terbaca
-
-```bash
-termux-clipboard-set "tes"
-termux-clipboard-get
-```
-
-Kalau error, pastikan Termux:API sudah terinstall dan izin diberikan.
-
-### Notifikasi tidak muncul
-
-Cek izin notifikasi Termux dan Termux:API di pengaturan Android.
-
-### Watcher mati sendiri di Oppo/Xiaomi/Vivo
-
-Matikan optimasi baterai untuk:
-
-- Termux
-- Termux:API
-- Termux:Widget
-
-Lalu jalankan:
-
-```bash
-termux-wake-lock
-nohup anu-watch > ~/.anu-agent/watch.log 2>&1 &
-```
-
-### Jawaban masuk lagi ke AI berulang
-
-Watcher sudah punya proteksi `lastAnswer`, tapi kalau masih loop, matikan watcher dulu:
-
-```bash
-pkill -f "src/watch.mjs"
-```
-
-Lalu bersihkan state:
-
-```bash
-rm -f ~/.anu-agent/state.json
-```
-
-Nyalakan lagi.
-
----
-
-## Roadmap
-
-- Screenshot mode.
-- Gemini Vision / provider multimodal.
-- Provider session rotation.
-- Mode OCR fallback.
-- UI overlay kecil.
-
+- Semua memory disimpan lokal.
+- Public endpoint bisa mati kapan saja.
+- Jangan gunakan untuk spam endpoint.
+- Gunakan untuk workflow pribadi, belajar, dan testing automation.
