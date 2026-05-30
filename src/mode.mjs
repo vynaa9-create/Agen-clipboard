@@ -1,23 +1,22 @@
-#!/usr/bin/env node
-/**
- * 【 Anu Agen Mode 】
- * Creator  : rhmt
- * Base     : local
- * Category : AI / Clipboard / Termux
- * Desc     : Set mode global untuk watcher/widget tanpa nambah prefix saat copy teks
- * Channel  : https://whatsapp.com/channel/0029VbBjyjlJ93wa6hwSWa0p
- */
+import {
+  loadMemory,
+  saveMemory,
+  normalizeMode,
+  toast
+} from "./core.mjs";
 
-import { getMode, MODE_MAP, setMode, toast } from "./core.mjs";
+const input = process.argv.slice(2).join(" ").trim();
 
-const mode = process.argv[2];
-
-if (!mode || mode === "list") {
-  console.log("Mode aktif:", getMode());
-  console.log("Mode tersedia:", Object.keys(MODE_MAP).join(", "));
+if (!input) {
+  const mem = loadMemory();
+  console.log(mem.active_mode || "default");
   process.exit(0);
 }
 
-const finalMode = setMode(mode);
-console.log(`Mode aktif: ${finalMode}`);
-toast(`Mode ${finalMode} aktif`);
+const mode = normalizeMode(input) || "default";
+const mem = loadMemory();
+mem.active_mode = mode;
+saveMemory(mem);
+
+toast(`Mode aktif: ${mode}`);
+console.log(`Mode aktif: ${mode}`);
