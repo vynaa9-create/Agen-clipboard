@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://files.catbox.moe/qj5why.png" alt="NeuroClip Preview" width="100%" />
+  <img src="https://raw.githubusercontent.com/vynaa9-create/Agen-clipboard/refs/heads/main/src/output%20(1).png" alt="NeuroClip Preview" width="100%" />
 </p>
 
 <h1 align="center">NeuroClip Agent</h1>
