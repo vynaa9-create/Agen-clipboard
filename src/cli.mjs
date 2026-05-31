@@ -1,6 +1,4 @@
-import fs from "node:fs";
-import path from "node:path";
-import { spawn, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import {
   HOME,
   APP_NAME,
@@ -15,100 +13,32 @@ import {
   resetContext,
   normalizeMode,
   removeNotif,
+  markBotOutput,
   NOTIF_PENDING_ID,
   NOTIF_RESULT_ID
 } from "./core.mjs";
 
-const PID_FILE = path.join(HOME, ".neuroclip", "watchdog.pid");
-const LOG_FILE = path.join(HOME, "neuroclip-watch.log");
+const LOG_FILE = `${HOME}/neuroclip-watch.log`;
 
-function ensureAppDir() {
-  fs.mkdirSync(path.join(HOME, ".neuroclip"), { recursive: true });
-}
-
-function readPid() {
-  try {
-    const pid = Number(fs.readFileSync(PID_FILE, "utf8").trim());
-    return Number.isFinite(pid) && pid > 0 ? pid : 0;
-  } catch {
-    return 0;
-  }
-}
-
-function writePid(pid) {
-  ensureAppDir();
-  fs.writeFileSync(PID_FILE, String(pid));
-}
-
-function removePid() {
-  try {
-    fs.rmSync(PID_FILE, { force: true });
-  } catch {}
-}
-
-function isAlive(pid) {
-  if (!pid) return false;
-
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function spawnWatchdog() {
-  ensureAppDir();
-
-  const out = fs.openSync(LOG_FILE, "a");
-
-  const command = `
-echo "[WATCHDOG] NeuroClip watchdog started: $(date)"
-while true; do
-  echo "[WATCHDOG] starting watcher: $(date)"
-  node "$HOME/.neuroclip/src/watch-confirm.mjs"
-  code=$?
-  echo "[WATCHDOG] watcher exited with code $code: $(date)"
-  sleep 2
-done
-`;
-
-  const child = spawn("sh", ["-lc", command], {
-    detached: true,
-    stdio: ["ignore", out, out],
-    env: process.env
+function sh(command) {
+  return spawnSync("sh", ["-lc", command], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
   });
+}
 
-  child.unref();
-  writePid(child.pid);
-
-  return child.pid;
+function spawnBg() {
+  sh(`nohup node "$HOME/.neuroclip/src/watch-confirm.mjs" >> "$HOME/neuroclip-watch.log" 2>&1 &`);
 }
 
 function killWatcher() {
-  const pid = readPid();
+  sh(`pkill -f "$HOME/.neuroclip/src/watch-confirm.mjs" 2>/dev/null || true`);
+  sh(`pkill -f "watch-confirm.mjs" 2>/dev/null || true`);
+}
 
-  if (pid && isAlive(pid)) {
-    try {
-      process.kill(-pid, "SIGTERM");
-    } catch {
-      try {
-        process.kill(pid, "SIGTERM");
-      } catch {}
-    }
-  }
-
-  removePid();
-
-  spawnSync("sh", ["-lc", "pkill -f watch-confirm.mjs 2>/dev/null || true"], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"]
-  });
-
-  spawnSync("sh", ["-lc", "pkill -f 'NeuroClip watchdog' 2>/dev/null || true"], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"]
-  });
+function pgrepWatcher() {
+  const res = sh(`pgrep -af "watch-confirm.mjs" 2>/dev/null || true`);
+  return String(res.stdout || "").trim();
 }
 
 function runAction(file, args = []) {
@@ -122,15 +52,6 @@ function runAction(file, args = []) {
   if (typeof res.status === "number" && res.status !== 0) {
     process.exit(res.status);
   }
-}
-
-function markBotOutput(text) {
-  const mem = loadMemory();
-  mem.last_output_clip = String(text || "").trim();
-  mem.last_output_at = Date.now();
-  mem.last_clip_seen = "";
-  mem.pending_text = "";
-  saveMemory(mem);
 }
 
 function usage() {
@@ -161,7 +82,7 @@ Internal:
 
 Mode:
   default, form, pilihanganda, opsi, sd, smp, sma, singkat, sedang,
-  lengkap, formal, code, math, wa, ringkas, rewrite`);
+  lengkap, bahas, alasan, formal, code, math, wa, ringkas, rewrite`);
 }
 
 async function runOnce(text) {
@@ -196,19 +117,20 @@ async function main() {
     case "start": {
       killWatcher();
       wakeLock();
+      spawnBg();
 
-      const pid = spawnWatchdog();
+      await new Promise(resolve => setTimeout(resolve, 700));
 
-      setTimeout(() => {
-        if (isAlive(pid)) {
-          toast("NeuroClip ON");
-          console.log(`NeuroClip ON\nPID: ${pid}`);
-        } else {
-          toast("NeuroClip gagal start.");
-          console.log("NeuroClip gagal start. Cek log:");
-          console.log(`tail -n 80 ${LOG_FILE}`);
-        }
-      }, 800);
+      const out = pgrepWatcher();
+
+      if (out) {
+        toast("NeuroClip ON");
+        console.log(`NeuroClip ON\n${out}`);
+      } else {
+        toast("NeuroClip gagal start.");
+        console.log("NeuroClip gagal start. Cek log:");
+        console.log(`tail -n 80 ${LOG_FILE}`);
+      }
 
       break;
     }
@@ -224,12 +146,11 @@ async function main() {
       break;
 
     case "status": {
-      const pid = readPid();
+      const out = pgrepWatcher();
 
-      if (pid && isAlive(pid)) {
-        console.log(`NeuroClip ON\nPID: ${pid}`);
+      if (out) {
+        console.log(`NeuroClip ON\n${out}`);
       } else {
-        removePid();
         console.log("NeuroClip OFF");
         console.log(`Cek log: tail -n 80 ${LOG_FILE}`);
       }
