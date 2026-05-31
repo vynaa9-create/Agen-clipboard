@@ -1,3 +1,4 @@
+
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -210,10 +211,9 @@ export function markBotOutput(text) {
   mem.last_output_at = Date.now();
   mem.pending_text = "";
 
-  // Penting: jangan biarkan teks user sebelumnya nyangkut.
-  // Setelah jawaban AI masuk clipboard, user boleh copy teks yang sama lagi
-  // dan watcher tetap harus memunculkan notifikasi baru.
-  mem.last_clip_seen = "";
+  // Set last_clip_seen ke output AI juga, supaya watcher langsung skip
+  // di poll pertama setelah AI set clipboard.
+  mem.last_clip_seen = value;
 
   saveMemory(mem);
   return mem;
@@ -436,9 +436,12 @@ export function shouldIgnoreClipboard(text, mem) {
   if (!raw) return true;
   if (raw.length < 2) return true;
 
-  // Abaikan clipboard yang berasal dari jawaban NeuroClip sendiri.
-  // Ini mencegah watcher berhenti/bingung setelah hasil AI otomatis masuk clipboard.
-  if (mem.last_output_clip && raw === mem.last_output_clip) return true;
+  // Abaikan clipboard yang berasal dari jawaban NeuroClip sendiri,
+  // tapi hanya dalam 8 detik setelah AI set clipboard.
+  // Setelah itu, lock expired — user mungkin salin teks yang kebetulan sama.
+  const outputAge = Date.now() - (mem.last_output_at || 0);
+  if (mem.last_output_clip && raw === mem.last_output_clip && outputAge < 8000) return true;
+
   if (raw === mem.last_answer) return true;
   if (raw === mem.last_display) return true;
   if (raw === mem.last_reason) return true;
