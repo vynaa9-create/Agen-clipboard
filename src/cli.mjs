@@ -36,6 +36,7 @@ function pgrep() {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"]
   });
+
   return String(res.stdout || "").trim();
 }
 
@@ -46,6 +47,7 @@ function runAction(file, args = []) {
   });
 
   if (res.error) throw res.error;
+
   if (typeof res.status === "number" && res.status !== 0) {
     process.exit(res.status);
   }
@@ -59,17 +61,18 @@ Pakai:
   neuro off                        matikan clipboard watcher
   neuro status                     cek status watcher
   neuro log                        lihat log watcher
-  neuro reset                      hapus konteks/pending text
+  neuro reset                      hapus konteks / pending text
   neuro reset full                 hapus semua memory termasuk mode
   neuro mode                       lihat mode aktif
   neuro mode form                  set mode aktif
+  neuro mode default               balik ke mode default
   neuro run "teks"                 jawab teks langsung
   neuro clip                       jawab isi clipboard sekali
   neuro help                       tampilkan bantuan ini
 
 Shortcut internal:
-  neuro answer                     jawab pending text/clipboard
-  neuro reply "instruksi"          balas/follow-up jawaban terakhir
+  neuro answer                     jawab pending text / clipboard
+  neuro reply "instruksi"          balas / follow-up jawaban terakhir
   neuro reason                     tampilkan alasan jawaban
   neuro view                       buka jawaban full
   neuro close                      tutup notifikasi
@@ -81,6 +84,8 @@ Mode:
 
 Contoh:
   neuro on
+  neuro off
+  neuro status
   neuro mode form
   neuro clip
   neuro run "apa itu deforestasi?"`);
@@ -88,6 +93,7 @@ Contoh:
 
 async function runOnce(text) {
   const input = text || getClipboard();
+
   if (!input) {
     console.log("Input kosong.");
     toast("Input kosong.");
@@ -95,6 +101,7 @@ async function runOnce(text) {
   }
 
   const mem = loadMemory();
+
   const result = await askRouter({
     mode: mem.active_mode || "default",
     question: input
@@ -111,7 +118,7 @@ async function runOnce(text) {
 
 async function main() {
   const [cmd, ...rest] = process.argv.slice(2);
-  const command = (cmd || "").toLowerCase();
+  const command = String(cmd || "").toLowerCase();
 
   switch (command) {
     case "on":
