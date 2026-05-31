@@ -19,7 +19,7 @@ import {
   NOTIF_RESULT_ID
 } from "./core.mjs";
 
-const PID_FILE = path.join(HOME, ".neuroclip", "watcher.pid");
+const PID_FILE = path.join(HOME, ".neuroclip", "watchdog.pid");
 const LOG_FILE = path.join(HOME, "neuroclip-watch.log");
 
 function ensureAppDir() {
@@ -57,12 +57,23 @@ function isAlive(pid) {
   }
 }
 
-function spawnBg() {
+function spawnWatchdog() {
   ensureAppDir();
 
   const out = fs.openSync(LOG_FILE, "a");
 
-  const child = spawn(process.execPath, [`${HOME}/.neuroclip/src/watch-confirm.mjs`], {
+  const command = `
+echo "[WATCHDOG] NeuroClip watchdog started: $(date)"
+while true; do
+  echo "[WATCHDOG] starting watcher: $(date)"
+  node "$HOME/.neuroclip/src/watch-confirm.mjs"
+  code=$?
+  echo "[WATCHDOG] watcher exited with code $code: $(date)"
+  sleep 2
+done
+`;
+
+  const child = spawn("sh", ["-lc", command], {
     detached: true,
     stdio: ["ignore", out, out],
     env: process.env
@@ -79,14 +90,22 @@ function killWatcher() {
 
   if (pid && isAlive(pid)) {
     try {
-      process.kill(pid, "SIGTERM");
-    } catch {}
+      process.kill(-pid, "SIGTERM");
+    } catch {
+      try {
+        process.kill(pid, "SIGTERM");
+      } catch {}
+    }
   }
 
   removePid();
 
-  // fallback kalau ada watcher lama dari versi sebelumnya
   spawnSync("sh", ["-lc", "pkill -f watch-confirm.mjs 2>/dev/null || true"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+
+  spawnSync("sh", ["-lc", "pkill -f 'NeuroClip watchdog' 2>/dev/null || true"], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"]
   });
@@ -178,7 +197,7 @@ async function main() {
       killWatcher();
       wakeLock();
 
-      const pid = spawnBg();
+      const pid = spawnWatchdog();
 
       setTimeout(() => {
         if (isAlive(pid)) {
@@ -187,9 +206,9 @@ async function main() {
         } else {
           toast("NeuroClip gagal start.");
           console.log("NeuroClip gagal start. Cek log:");
-          console.log(`tail -n 50 ${LOG_FILE}`);
+          console.log(`tail -n 80 ${LOG_FILE}`);
         }
-      }, 600);
+      }, 800);
 
       break;
     }
@@ -212,6 +231,7 @@ async function main() {
       } else {
         removePid();
         console.log("NeuroClip OFF");
+        console.log(`Cek log: tail -n 80 ${LOG_FILE}`);
       }
 
       break;
