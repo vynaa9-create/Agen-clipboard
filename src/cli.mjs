@@ -56,36 +56,71 @@ function runAction(file, args = []) {
 function usage() {
   console.log(`${APP_NAME} CLI
 
-Pakai:
-  neuro on                         aktifkan clipboard watcher
-  neuro off                        matikan clipboard watcher
-  neuro status                     cek status watcher
-  neuro log                        lihat log watcher
-  neuro reset                      hapus konteks / pending text
-  neuro reset full                 hapus semua memory termasuk mode
-  neuro mode                       lihat mode aktif
-  neuro mode form                  set mode aktif
-  neuro mode default               balik ke mode default
-  neuro run "teks"                 jawab teks langsung
-  neuro clip                       jawab isi clipboard sekali
-  neuro help                       tampilkan bantuan ini
+Command utama:
+  neuro on
+    Aktifkan clipboard watcher. Setelah aktif, salin teks dari aplikasi mana pun dan NeuroClip akan menampilkan notifikasi.
+
+  neuro off
+    Matikan clipboard watcher, hapus notifikasi NeuroClip, dan lepas wakelock.
+
+  neuro status
+    Cek apakah watcher sedang aktif atau mati.
+
+  neuro log
+    Lihat log watcher secara live. Tekan CTRL + C untuk keluar.
+
+  neuro mode
+    Lihat mode jawaban yang sedang aktif.
+
+  neuro mode form
+    Set mode ke form/soal. Cocok untuk pertanyaan pilihan, form sekolah, dan jawaban singkat.
+
+  neuro mode default
+    Balik ke mode normal/default.
+
+  neuro clip
+    Jawab isi clipboard sekali tanpa menyalakan watcher permanen.
+
+  neuro run "teks"
+    Jawab teks langsung dari command.
+
+  neuro reset
+    Bersihkan konteks, pending text, jawaban terakhir, dan state sementara.
+
+  neuro reset full
+    Reset total memory NeuroClip termasuk mode aktif.
+
+  neuro help
+    Tampilkan bantuan command.
+
+  neuro info
+    Sama seperti help, menampilkan penjelasan command.
 
 Shortcut internal:
-  neuro answer                     jawab pending text / clipboard
-  neuro reply "instruksi"          balas / follow-up jawaban terakhir
-  neuro reason                     tampilkan alasan jawaban
-  neuro view                       buka jawaban full
-  neuro close                      tutup notifikasi
-  neuro menu                       buka menu dialog
+  neuro answer
+    Jawab pending text atau clipboard dari shortcut/notifikasi.
+
+  neuro reply "instruksi"
+    Follow-up jawaban terakhir dengan instruksi tambahan.
+
+  neuro reason
+    Tampilkan alasan dari jawaban terakhir.
+
+  neuro view
+    Buka jawaban terakhir versi full.
+
+  neuro close
+    Tutup notifikasi NeuroClip.
+
+  neuro menu
+    Buka menu dialog NeuroClip.
 
 Mode:
   default, form, pilihanganda, opsi, sd, smp, sma, singkat, sedang,
   lengkap, bahas, alasan, formal, code, math, wa, ringkas, rewrite
 
-Contoh:
+Contoh cepat:
   neuro on
-  neuro off
-  neuro status
   neuro mode form
   neuro clip
   neuro run "apa itu deforestasi?"`);
@@ -219,6 +254,7 @@ async function main() {
     case "commands":
     case "command":
     case "help":
+    case "info":
     case "--help":
     case "-h":
     default:
