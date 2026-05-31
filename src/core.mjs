@@ -85,7 +85,12 @@ Jangan tambah teks lain di luar JSON.`,
 
 export function ensureDir() {
   fs.mkdirSync(APP_DIR, { recursive: true });
-  fs.mkdirSync("/sdcard/termux", { recursive: true });
+
+  // Storage Android kadang belum diberi izin. Jangan sampai watcher mati
+  // hanya karena /sdcard/termux belum bisa dibuat.
+  try {
+    fs.mkdirSync("/sdcard/termux", { recursive: true });
+  } catch {}
 }
 
 export function run(cmd, args = [], opts = {}) {
