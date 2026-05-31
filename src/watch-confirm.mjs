@@ -34,13 +34,8 @@ async function main() {
         mem.pending_text = clip;
         mem.last_clip_seen = clip;
 
-        // Clipboard baru dari user berarti output AI sebelumnya sudah tidak perlu dikunci.
-        // Ini bikin salin berikutnya tetap kebaca, termasuk kalau teksnya mirip/sama setelah jawab.
-        mem.last_output_clip = "";
-        mem.last_output_at = 0;
-
-        // Reset konteks lama saat clipboard baru masuk.
-        // Ini mencegah Balas nyangkut ke soal sebelumnya.
+        // Jangan reset last_output_clip di sini — sudah dihandle shouldIgnoreClipboard.
+        // Reset hanya konteks percakapan, bukan penanda output AI.
         mem.last_question = "";
         mem.last_answer = "";
         mem.last_display = "";
