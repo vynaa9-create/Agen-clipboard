@@ -1,4 +1,6 @@
-import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { spawn, spawnSync } from "node:child_process";
 import {
   HOME,
   APP_NAME,
@@ -11,34 +13,83 @@ import {
   loadMemory,
   saveMemory,
   resetContext,
-  markBotOutput,
   normalizeMode,
   removeNotif,
   NOTIF_PENDING_ID,
   NOTIF_RESULT_ID
 } from "./core.mjs";
 
-function spawnBg(logFile) {
-  spawnSync("sh", ["-lc", `nohup node "$HOME/.neuroclip/src/watch-confirm.mjs" > "$HOME/${logFile}" 2>&1 &`], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"]
+const PID_FILE = path.join(HOME, ".neuroclip", "watcher.pid");
+const LOG_FILE = path.join(HOME, "neuroclip-watch.log");
+
+function ensureAppDir() {
+  fs.mkdirSync(path.join(HOME, ".neuroclip"), { recursive: true });
+}
+
+function readPid() {
+  try {
+    const pid = Number(fs.readFileSync(PID_FILE, "utf8").trim());
+    return Number.isFinite(pid) && pid > 0 ? pid : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writePid(pid) {
+  ensureAppDir();
+  fs.writeFileSync(PID_FILE, String(pid));
+}
+
+function removePid() {
+  try {
+    fs.rmSync(PID_FILE, { force: true });
+  } catch {}
+}
+
+function isAlive(pid) {
+  if (!pid) return false;
+
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function spawnBg() {
+  ensureAppDir();
+
+  const out = fs.openSync(LOG_FILE, "a");
+
+  const child = spawn(process.execPath, [`${HOME}/.neuroclip/src/watch-confirm.mjs`], {
+    detached: true,
+    stdio: ["ignore", out, out],
+    env: process.env
   });
+
+  child.unref();
+  writePid(child.pid);
+
+  return child.pid;
 }
 
 function killWatcher() {
-  spawnSync("pkill", ["-f", "watch-confirm.mjs"], {
+  const pid = readPid();
+
+  if (pid && isAlive(pid)) {
+    try {
+      process.kill(pid, "SIGTERM");
+    } catch {}
+  }
+
+  removePid();
+
+  // fallback kalau ada watcher lama dari versi sebelumnya
+  spawnSync("sh", ["-lc", "pkill -f watch-confirm.mjs 2>/dev/null || true"], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"]
   });
-}
-
-function pgrep() {
-  const res = spawnSync("pgrep", ["-af", "watch-confirm.mjs"], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"]
-  });
-
-  return String(res.stdout || "").trim();
 }
 
 function runAction(file, args = []) {
@@ -54,77 +105,44 @@ function runAction(file, args = []) {
   }
 }
 
+function markBotOutput(text) {
+  const mem = loadMemory();
+  mem.last_output_clip = String(text || "").trim();
+  mem.last_output_at = Date.now();
+  mem.last_clip_seen = "";
+  mem.pending_text = "";
+  saveMemory(mem);
+}
+
 function usage() {
   console.log(`${APP_NAME} CLI
 
-Command utama:
-  neuro on
-    Aktifkan clipboard watcher. Setelah aktif, salin teks dari aplikasi mana pun dan NeuroClip akan menampilkan notifikasi.
+Pakai:
+  neuro on                 aktifkan clipboard watcher
+  neuro off                matikan clipboard watcher
+  neuro status             cek status watcher
+  neuro log                lihat log watcher
+  neuro reset              hapus konteks memory
+  neuro reset full         hapus semua memory termasuk mode
+  neuro mode               lihat mode aktif
+  neuro mode form          set mode aktif
+  neuro mode default       balik ke mode default
+  neuro run "teks"         jawab sekali
+  neuro clip               jawab isi clipboard sekali
+  neuro help               tampilkan bantuan
+  neuro info               tampilkan bantuan
 
-  neuro off
-    Matikan clipboard watcher, hapus notifikasi NeuroClip, dan lepas wakelock.
-
-  neuro status
-    Cek apakah watcher sedang aktif atau mati.
-
-  neuro log
-    Lihat log watcher secara live. Tekan CTRL + C untuk keluar.
-
-  neuro mode
-    Lihat mode jawaban yang sedang aktif.
-
-  neuro mode form
-    Set mode ke form/soal. Cocok untuk pertanyaan pilihan, form sekolah, dan jawaban singkat.
-
-  neuro mode default
-    Balik ke mode normal/default.
-
-  neuro clip
-    Jawab isi clipboard sekali tanpa menyalakan watcher permanen.
-
-  neuro run "teks"
-    Jawab teks langsung dari command.
-
-  neuro reset
-    Bersihkan konteks, pending text, jawaban terakhir, dan state sementara.
-
-  neuro reset full
-    Reset total memory NeuroClip termasuk mode aktif.
-
-  neuro help
-    Tampilkan bantuan command.
-
-  neuro info
-    Sama seperti help, menampilkan penjelasan command.
-
-Shortcut internal:
-  neuro answer
-    Jawab pending text atau clipboard dari shortcut/notifikasi.
-
-  neuro reply "instruksi"
-    Follow-up jawaban terakhir dengan instruksi tambahan.
-
-  neuro reason
-    Tampilkan alasan dari jawaban terakhir.
-
-  neuro view
-    Buka jawaban terakhir versi full.
-
-  neuro close
-    Tutup notifikasi NeuroClip.
-
-  neuro menu
-    Buka menu dialog NeuroClip.
+Internal:
+  neuro answer             jawab pending text
+  neuro reply "instruksi"  follow-up jawaban terakhir
+  neuro reason             tampilkan alasan
+  neuro view               lihat jawaban full
+  neuro close              tutup notif
+  neuro menu               buka menu notif
 
 Mode:
   default, form, pilihanganda, opsi, sd, smp, sma, singkat, sedang,
-  lengkap, bahas, alasan, formal, code, math, wa, ringkas, rewrite
-
-Contoh cepat:
-  neuro on
-  neuro mode form
-  neuro clip
-  neuro run "apa itu deforestasi?"`);
+  lengkap, formal, code, math, wa, ringkas, rewrite`);
 }
 
 async function runOnce(text) {
@@ -145,6 +163,7 @@ async function runOnce(text) {
 
   markBotOutput(result.answer);
   setClipboard(result.answer);
+
   console.log(result.answer);
   toast("Jawaban masuk clipboard.");
 }
@@ -155,13 +174,25 @@ async function main() {
 
   switch (command) {
     case "on":
-    case "start":
+    case "start": {
       killWatcher();
       wakeLock();
-      spawnBg("neuroclip-watch.log");
-      toast("NeuroClip ON");
-      console.log("NeuroClip ON");
+
+      const pid = spawnBg();
+
+      setTimeout(() => {
+        if (isAlive(pid)) {
+          toast("NeuroClip ON");
+          console.log(`NeuroClip ON\nPID: ${pid}`);
+        } else {
+          toast("NeuroClip gagal start.");
+          console.log("NeuroClip gagal start. Cek log:");
+          console.log(`tail -n 50 ${LOG_FILE}`);
+        }
+      }, 600);
+
       break;
+    }
 
     case "off":
     case "stop":
@@ -174,13 +205,20 @@ async function main() {
       break;
 
     case "status": {
-      const out = pgrep();
-      console.log(out ? `NeuroClip ON\n${out}` : "NeuroClip OFF");
+      const pid = readPid();
+
+      if (pid && isAlive(pid)) {
+        console.log(`NeuroClip ON\nPID: ${pid}`);
+      } else {
+        removePid();
+        console.log("NeuroClip OFF");
+      }
+
       break;
     }
 
     case "log":
-      spawnSync("tail", ["-f", `${HOME}/neuroclip-watch.log`], {
+      spawnSync("tail", ["-f", LOG_FILE], {
         encoding: "utf8",
         stdio: "inherit"
       });
