@@ -1,246 +1,227 @@
-import { spawnSync } from "node:child_process";
-import {
-  HOME,
-  APP_NAME,
-  getClipboard,
-  setClipboard,
-  wakeLock,
-  wakeUnlock,
-  toast,
-  askRouter,
-  loadMemory,
-  saveMemory,
-  resetContext,
-  normalizeMode,
-  removeNotif,
-  markBotOutput,
-  NOTIF_PENDING_ID,
-  NOTIF_RESULT_ID
-} from "./core.mjs";
+#!/data/data/com.termux/files/usr/bin/bash
+set -e
 
-const LOG_FILE = `${HOME}/neuroclip-watch.log`;
+APP_NAME="NeuroClip"
+APP_VERSION="2.0"
+APP_DIR="$HOME/.neuroclip"
+SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 
-function sh(command) {
-  return spawnSync("sh", ["-lc", command], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"]
-  });
+R="\033[1;31m"
+G="\033[1;32m"
+Y="\033[1;33m"
+C="\033[1;36m"
+W="\033[1;37m"
+N="\033[0m"
+
+clear_screen() {
+  clear 2>/dev/null || true
 }
 
-function spawnBg() {
-  sh(`nohup node "$HOME/.neuroclip/src/watch-confirm.mjs" >> "$HOME/neuroclip-watch.log" 2>&1 &`);
+banner() {
+  clear_screen
+  printf "${Y}"
+  cat <<'ART'
+ _   _                         ____ _ _       
+| \ | | ___ _   _ _ __ ___    / ___| (_)_ __  
+|  \| |/ _ \ | | | '__/ _ \  | |   | | | '_ \ 
+| |\  |  __/ |_| | | | (_) | | |___| | | |_) |
+|_| \_|\___|\__,_|_|  \___/   \____|_|_| .__/ 
+                                       |_|    
+ART
+  printf "${N}"
+  printf "                      ${W}Version ${APP_VERSION}${N}\n\n"
+  printf "${G}[+]${N} Tool Created by ${Y}rhmt${N}\n"
+  printf "${G}[+]${N} Project      : ${C}${APP_NAME} Agent${N}\n"
+  printf "${G}[+]${N} Runtime      : ${C}Termux + Node.js${N}\n"
+  printf "${G}[+]${N} Mode         : ${C}Clipboard AI Copilot${N}\n\n"
 }
 
-function killWatcher() {
-  sh(`pkill -f "$HOME/.neuroclip/src/watch-confirm.mjs" 2>/dev/null || true`);
-  sh(`pkill -f "watch-confirm.mjs" 2>/dev/null || true`);
+fail_box() {
+  printf "\n${R}[!] Setup gagal.${N}\n"
+  printf "${Y}Cek error di atas, lalu ulangi:${N}\n"
+  printf "    ${C}bash scripts/setup-termux.sh${N}\n\n"
 }
 
-function pgrepWatcher() {
-  const res = sh(`pgrep -af "watch-confirm.mjs" 2>/dev/null || true`);
-  return String(res.stdout || "").trim();
+trap fail_box ERR
+
+step_start() {
+  printf "${R}[%02d]${N} ${Y}%-34s${N}" "$1" "$2"
 }
 
-function runAction(file, args = []) {
-  const res = spawnSync("node", [`${HOME}/.neuroclip/src/${file}`, ...args], {
-    encoding: "utf8",
-    stdio: "inherit"
-  });
-
-  if (res.error) throw res.error;
-
-  if (typeof res.status === "number" && res.status !== 0) {
-    process.exit(res.status);
-  }
+ok() {
+  printf "${G}[OK]${N}\n"
 }
 
-function usage() {
-  console.log(`${APP_NAME} CLI
-
-Pakai:
-  neuro on                 aktifkan clipboard watcher
-  neuro off                matikan clipboard watcher
-  neuro status             cek status watcher
-  neuro log                lihat log watcher
-  neuro reset              hapus konteks memory
-  neuro reset full         hapus semua memory termasuk mode
-  neuro mode               lihat mode aktif
-  neuro mode form          set mode aktif
-  neuro mode default       balik ke mode default
-  neuro run "teks"         jawab sekali
-  neuro clip               jawab isi clipboard sekali
-  neuro help               tampilkan bantuan
-  neuro info               tampilkan bantuan
-
-Internal:
-  neuro answer             jawab pending text
-  neuro reply "instruksi"  follow-up jawaban terakhir
-  neuro reason             tampilkan alasan
-  neuro view               lihat jawaban full
-  neuro close              tutup notif
-  neuro menu               buka menu notif
-
-Mode:
-  default, form, pilihanganda, opsi, sd, smp, sma, singkat, sedang,
-  lengkap, bahas, alasan, formal, code, math, wa, ringkas, rewrite`);
+warn() {
+  printf "${Y}[WARN]${N} %s\n" "$1"
 }
 
-async function runOnce(text) {
-  const input = text || getClipboard();
+check_hard_requirement() {
+  local cmd="$1"
+  local pkg="$2"
 
-  if (!input) {
-    console.log("Input kosong.");
-    toast("Input kosong.");
-    return;
-  }
-
-  const mem = loadMemory();
-
-  const result = await askRouter({
-    mode: mem.active_mode || "default",
-    question: input
-  });
-
-  markBotOutput(result.answer);
-  setClipboard(result.answer);
-
-  console.log(result.answer);
-  toast("Jawaban masuk clipboard.");
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    printf "\n${R}[!] Command '%s' belum ada.${N}\n" "$cmd"
+    printf "${Y}Install dulu:${N} ${C}pkg install %s -y${N}\n\n" "$pkg"
+    exit 1
+  fi
 }
 
-async function main() {
-  const [cmd, ...rest] = process.argv.slice(2);
-  const command = String(cmd || "").toLowerCase();
+check_soft_requirement() {
+  local cmd="$1"
+  local pkg="$2"
 
-  switch (command) {
-    case "on":
-    case "start": {
-      killWatcher();
-      wakeLock();
-      spawnBg();
-
-      await new Promise(resolve => setTimeout(resolve, 700));
-
-      const out = pgrepWatcher();
-
-      if (out) {
-        toast("NeuroClip ON");
-        console.log(`NeuroClip ON\n${out}`);
-      } else {
-        toast("NeuroClip gagal start.");
-        console.log("NeuroClip gagal start. Cek log:");
-        console.log(`tail -n 80 ${LOG_FILE}`);
-      }
-
-      break;
-    }
-
-    case "off":
-    case "stop":
-      killWatcher();
-      removeNotif(NOTIF_PENDING_ID);
-      removeNotif(NOTIF_RESULT_ID);
-      wakeUnlock();
-      toast("NeuroClip OFF");
-      console.log("NeuroClip OFF");
-      break;
-
-    case "status": {
-      const out = pgrepWatcher();
-
-      if (out) {
-        console.log(`NeuroClip ON\n${out}`);
-      } else {
-        console.log("NeuroClip OFF");
-        console.log(`Cek log: tail -n 80 ${LOG_FILE}`);
-      }
-
-      break;
-    }
-
-    case "log":
-      spawnSync("tail", ["-f", LOG_FILE], {
-        encoding: "utf8",
-        stdio: "inherit"
-      });
-      break;
-
-    case "reset": {
-      const full = rest.join(" ").trim().toLowerCase() === "full";
-      resetContext({ full });
-      removeNotif(NOTIF_PENDING_ID);
-      removeNotif(NOTIF_RESULT_ID);
-      toast(full ? "Memory full reset." : "Memory konteks dibersihkan.");
-      console.log(full ? "Memory full reset." : "Memory konteks dibersihkan.");
-      break;
-    }
-
-    case "mode": {
-      const input = rest.join(" ").trim();
-      const mem = loadMemory();
-
-      if (!input) {
-        console.log(mem.active_mode || "default");
-        return;
-      }
-
-      mem.active_mode = normalizeMode(input) || "default";
-      saveMemory(mem);
-      toast(`Mode aktif: ${mem.active_mode}`);
-      console.log(`Mode aktif: ${mem.active_mode}`);
-      break;
-    }
-
-    case "run":
-      await runOnce(rest.join(" ").trim());
-      break;
-
-    case "clip":
-      await runOnce("");
-      break;
-
-    case "answer":
-    case "jawab":
-      runAction("answer.mjs", rest);
-      break;
-
-    case "reply":
-    case "balas":
-      runAction("reply.mjs", rest);
-      break;
-
-    case "reason":
-    case "alasan":
-      runAction("reason.mjs", rest);
-      break;
-
-    case "view":
-    case "lihat":
-      runAction("view.mjs", rest);
-      break;
-
-    case "close":
-    case "tutup":
-      runAction("close.mjs", rest);
-      break;
-
-    case "menu":
-      runAction("menu.mjs", rest);
-      break;
-
-    case "commands":
-    case "command":
-    case "help":
-    case "info":
-    case "--help":
-    case "-h":
-    default:
-      usage();
-      break;
-  }
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    warn "Command '$cmd' belum ada. Install: pkg install $pkg -y"
+  fi
 }
 
-main().catch(e => {
-  console.error(e);
-  toast(`NeuroClip error: ${e.message}`);
-});
+write_shortcut() {
+  local name="$1"
+  local body="$2"
+
+  cat > "$HOME/.shortcuts/$name" <<SHORTCUT
+#!/data/data/com.termux/files/usr/bin/bash
+$body
+SHORTCUT
+
+  chmod +x "$HOME/.shortcuts/$name"
+}
+
+verify_source() {
+  if [ ! -d "$SRC_DIR/src" ]; then
+    printf "\n${R}[!] Folder source tidak ditemukan:${N} ${C}$SRC_DIR/src${N}\n"
+    exit 1
+  fi
+
+  if [ ! -f "$SRC_DIR/src/cli.mjs" ]; then
+    printf "\n${R}[!] File source hilang:${N} ${C}$SRC_DIR/src/cli.mjs${N}\n"
+    exit 1
+  fi
+
+  if [ ! -f "$SRC_DIR/src/core.mjs" ]; then
+    printf "\n${R}[!] File source hilang:${N} ${C}$SRC_DIR/src/core.mjs${N}\n"
+    exit 1
+  fi
+
+  if [ ! -f "$SRC_DIR/config/providers.json" ]; then
+    printf "\n${R}[!] File config hilang:${N} ${C}$SRC_DIR/config/providers.json${N}\n"
+    exit 1
+  fi
+}
+
+check_js_file() {
+  local file="$1"
+
+  if [ -f "$APP_DIR/src/$file" ]; then
+    node --check "$APP_DIR/src/$file" >/dev/null
+  fi
+}
+
+install_files() {
+  step_start 1 "Checking Requirements"
+  check_hard_requirement node nodejs
+  check_soft_requirement termux-clipboard-get termux-api
+  check_soft_requirement termux-clipboard-set termux-api
+  check_soft_requirement termux-notification termux-api
+  check_soft_requirement termux-toast termux-api
+  ok
+
+  step_start 2 "Checking Source Files"
+  verify_source
+  ok
+
+  step_start 3 "Preparing Directory"
+  rm -rf "$APP_DIR/src"
+  mkdir -p "$APP_DIR/src" "$APP_DIR/config" "$HOME/.shortcuts"
+  mkdir -p /sdcard/termux 2>/dev/null || true
+  ok
+
+  step_start 4 "Copying Source Files"
+  cp -f "$SRC_DIR/src/"*.mjs "$APP_DIR/src/"
+  cp -f "$SRC_DIR/config/providers.json" "$APP_DIR/providers.json"
+  cp -f "$SRC_DIR/config/providers.json" "$APP_DIR/config/providers.json"
+
+  if [ ! -f "$APP_DIR/src/cli.mjs" ]; then
+    printf "\n${R}[!] cli.mjs gagal dicopy ke:${N} ${C}$APP_DIR/src${N}\n"
+    exit 1
+  fi
+  ok
+
+  step_start 5 "Checking JavaScript Syntax"
+  check_js_file core.mjs
+  check_js_file watch-confirm.mjs
+  check_js_file answer.mjs
+  check_js_file reply.mjs
+  check_js_file reason.mjs
+  check_js_file menu.mjs
+  check_js_file view.mjs
+  check_js_file close.mjs
+  check_js_file reset.mjs
+  check_js_file mode.mjs
+  check_js_file cli.mjs
+  ok
+
+  step_start 6 "Installing Neuro Command"
+  mkdir -p "$PREFIX/bin"
+
+  cat > "$PREFIX/bin/neuro" <<'NEURO'
+#!/data/data/com.termux/files/usr/bin/bash
+node "$HOME/.neuroclip/src/cli.mjs" "$@"
+NEURO
+
+  chmod +x "$PREFIX/bin/neuro"
+
+  if ! command -v neuro >/dev/null 2>&1; then
+    printf "\n${R}[!] Command neuro gagal dipasang.${N}\n"
+    exit 1
+  fi
+  ok
+
+  step_start 7 "Creating Notification Actions"
+  write_shortcut "neuro-answer" 'node "$HOME/.neuroclip/src/answer.mjs" >> "$HOME/neuroclip.log" 2>&1'
+  write_shortcut "neuro-reply" 'node "$HOME/.neuroclip/src/reply.mjs" >> "$HOME/neuroclip.log" 2>&1'
+  write_shortcut "neuro-reason" 'node "$HOME/.neuroclip/src/reason.mjs" >> "$HOME/neuroclip.log" 2>&1'
+  write_shortcut "neuro-menu" 'node "$HOME/.neuroclip/src/menu.mjs" >> "$HOME/neuroclip.log" 2>&1'
+  write_shortcut "neuro-view" 'node "$HOME/.neuroclip/src/view.mjs" >> "$HOME/neuroclip.log" 2>&1'
+  write_shortcut "neuro-close" 'node "$HOME/.neuroclip/src/close.mjs" >> "$HOME/neuroclip.log" 2>&1'
+  write_shortcut "neuro-reset" 'node "$HOME/.neuroclip/src/reset.mjs" >> "$HOME/neuroclip.log" 2>&1'
+  write_shortcut "neuro-on" 'neuro on'
+  write_shortcut "neuro-off" 'neuro off'
+  ok
+
+  step_start 8 "Verifying Install"
+  test -f "$APP_DIR/src/cli.mjs"
+  test -x "$PREFIX/bin/neuro"
+  ok
+}
+
+success_screen() {
+  printf "\n${G}[+]${N} Installation finished successfully!\n\n"
+
+  printf "${C}.:: NeuroClip Commands ::.${N}\n\n"
+
+  printf "${R}[>]${N} ${C}neuro on${N}\n"
+  printf "${R}[>]${N} ${C}neuro off${N}\n"
+  printf "${R}[>]${N} ${C}neuro status${N}\n"
+  printf "${R}[>]${N} ${C}neuro log${N}\n"
+  printf "${R}[>]${N} ${C}neuro mode${N}\n"
+  printf "${R}[>]${N} ${C}neuro mode form${N}\n"
+  printf "${R}[>]${N} ${C}neuro mode default${N}\n"
+  printf "${R}[>]${N} ${C}neuro clip${N}\n"
+  printf "${R}[>]${N} ${C}neuro run \"apa itu deforestasi?\"${N}\n"
+  printf "${R}[>]${N} ${C}neuro reset${N}\n"
+  printf "${R}[>]${N} ${C}neuro reset full${N}\n"
+  printf "${R}[>]${N} ${C}neuro help${N}\n"
+  printf "${R}[>]${N} ${C}neuro info${N}\n\n"
+
+  printf "${G}Flow:${N} ${Y}Copy text ${W}->${Y} Notification ${W}->${Y} Answer ${W}->${Y} Paste${N}\n\n"
+  printf "${G}[+]${N} Ready. Start watcher:\n"
+  printf "    ${C}neuro on${N}\n\n"
+}
+
+banner
+printf "${C}.:: Installing NeuroClip Components ::.${N}\n\n"
+install_files
+success_screen
