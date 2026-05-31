@@ -13,36 +13,45 @@ import {
   resetContext,
   normalizeMode,
   removeNotif,
+  markBotOutput,
   NOTIF_PENDING_ID,
   NOTIF_RESULT_ID
 } from "./core.mjs";
 
-function spawnBg(logFile) {
-  spawnSync("sh", ["-lc", `nohup node "$HOME/.neuroclip/src/watch-confirm.mjs" > "$HOME/${logFile}" 2>&1 &`], {
+const LOG_FILE = `${HOME}/neuroclip-watch.log`;
+
+function sh(command) {
+  return spawnSync("sh", ["-lc", command], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"]
   });
+}
+
+function spawnBg() {
+  sh(`nohup node "$HOME/.neuroclip/src/watch-confirm.mjs" >> "$HOME/neuroclip-watch.log" 2>&1 &`);
 }
 
 function killWatcher() {
-  spawnSync("sh", ["-lc", "pkill -f watch-confirm.mjs 2>/dev/null || true"], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"]
-  });
-
-  spawnSync("sh", ["-lc", "pkill -f watchdog.pid 2>/dev/null || true"], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"]
-  });
+  sh(`pkill -f "$HOME/.neuroclip/src/watch-confirm.mjs" 2>/dev/null || true`);
+  sh(`pkill -f "watch-confirm.mjs" 2>/dev/null || true`);
 }
 
-function pgrep() {
-  const res = spawnSync("sh", ["-lc", "pgrep -af watch-confirm.mjs 2>/dev/null || true"], {
+function pgrepWatcher() {
+  const res = sh(`pgrep -af "watch-confirm.mjs" 2>/dev/null || true`);
+  return String(res.stdout || "").trim();
+}
+
+function runAction(file, args = []) {
+  const res = spawnSync("node", [`${HOME}/.neuroclip/src/${file}`, ...args], {
     encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"]
+    stdio: "inherit"
   });
 
-  return String(res.stdout || "").trim();
+  if (res.error) throw res.error;
+
+  if (typeof res.status === "number" && res.status !== 0) {
+    process.exit(res.status);
+  }
 }
 
 function usage() {
@@ -63,20 +72,17 @@ Pakai:
   neuro help               tampilkan bantuan
   neuro info               tampilkan bantuan
 
+Internal:
+  neuro answer             jawab pending text
+  neuro reply "instruksi"  follow-up jawaban terakhir
+  neuro reason             tampilkan alasan
+  neuro view               lihat jawaban full
+  neuro close              tutup notif
+  neuro menu               buka menu notif
+
 Mode:
   default, form, pilihanganda, opsi, sd, smp, sma, singkat, sedang,
-  lengkap, formal, code, math, wa, ringkas, rewrite`);
-}
-
-function markBotOutput(text) {
-  const mem = loadMemory();
-  const value = String(text || "").trim();
-
-  mem.last_output_clip = value;
-  mem.last_output_at = Date.now();
-  mem.last_clip_seen = value;
-
-  saveMemory(mem);
+  lengkap, bahas, alasan, formal, code, math, wa, ringkas, rewrite`);
 }
 
 async function runOnce(text) {
@@ -108,13 +114,26 @@ async function main() {
 
   switch (command) {
     case "on":
-    case "start":
+    case "start": {
       killWatcher();
       wakeLock();
-      spawnBg("neuroclip-watch.log");
-      toast("NeuroClip ON");
-      console.log("NeuroClip ON");
+      spawnBg();
+
+      await new Promise(resolve => setTimeout(resolve, 700));
+
+      const out = pgrepWatcher();
+
+      if (out) {
+        toast("NeuroClip ON");
+        console.log(`NeuroClip ON\n${out}`);
+      } else {
+        toast("NeuroClip gagal start.");
+        console.log("NeuroClip gagal start. Cek log:");
+        console.log(`tail -n 80 ${LOG_FILE}`);
+      }
+
       break;
+    }
 
     case "off":
     case "stop":
@@ -127,13 +146,20 @@ async function main() {
       break;
 
     case "status": {
-      const out = pgrep();
-      console.log(out ? `NeuroClip ON\n${out}` : "NeuroClip OFF");
+      const out = pgrepWatcher();
+
+      if (out) {
+        console.log(`NeuroClip ON\n${out}`);
+      } else {
+        console.log("NeuroClip OFF");
+        console.log(`Cek log: tail -n 80 ${LOG_FILE}`);
+      }
+
       break;
     }
 
     case "log":
-      spawnSync("tail", ["-f", `${HOME}/neuroclip-watch.log`], {
+      spawnSync("tail", ["-f", LOG_FILE], {
         encoding: "utf8",
         stdio: "inherit"
       });
@@ -171,6 +197,35 @@ async function main() {
 
     case "clip":
       await runOnce("");
+      break;
+
+    case "answer":
+    case "jawab":
+      runAction("answer.mjs", rest);
+      break;
+
+    case "reply":
+    case "balas":
+      runAction("reply.mjs", rest);
+      break;
+
+    case "reason":
+    case "alasan":
+      runAction("reason.mjs", rest);
+      break;
+
+    case "view":
+    case "lihat":
+      runAction("view.mjs", rest);
+      break;
+
+    case "close":
+    case "tutup":
+      runAction("close.mjs", rest);
+      break;
+
+    case "menu":
+      runAction("menu.mjs", rest);
       break;
 
     case "commands":
