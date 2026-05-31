@@ -12,7 +12,6 @@ G="\033[1;32m"
 Y="\033[1;33m"
 C="\033[1;36m"
 W="\033[1;37m"
-D="\033[2m"
 N="\033[0m"
 
 clear_screen() {
@@ -101,9 +100,22 @@ verify_source() {
     exit 1
   fi
 
+  if [ ! -f "$SRC_DIR/src/core.mjs" ]; then
+    printf "\n${R}[!] File source hilang:${N} ${C}$SRC_DIR/src/core.mjs${N}\n"
+    exit 1
+  fi
+
   if [ ! -f "$SRC_DIR/config/providers.json" ]; then
     printf "\n${R}[!] File config hilang:${N} ${C}$SRC_DIR/config/providers.json${N}\n"
     exit 1
+  fi
+}
+
+check_js_file() {
+  local file="$1"
+
+  if [ -f "$APP_DIR/src/$file" ]; then
+    node --check "$APP_DIR/src/$file" >/dev/null
   fi
 }
 
@@ -138,16 +150,17 @@ install_files() {
   ok
 
   step_start 5 "Checking JavaScript Syntax"
-  node --check "$APP_DIR/src/core.mjs" >/dev/null
-  node --check "$APP_DIR/src/watch-confirm.mjs" >/dev/null
-  node --check "$APP_DIR/src/answer.mjs" >/dev/null
-  node --check "$APP_DIR/src/reply.mjs" >/dev/null
-  node --check "$APP_DIR/src/reason.mjs" >/dev/null
-  node --check "$APP_DIR/src/menu.mjs" >/dev/null
-  node --check "$APP_DIR/src/view.mjs" >/dev/null
-  node --check "$APP_DIR/src/reset.mjs" >/dev/null
-  node --check "$APP_DIR/src/mode.mjs" >/dev/null
-  node --check "$APP_DIR/src/cli.mjs" >/dev/null
+  check_js_file core.mjs
+  check_js_file watch-confirm.mjs
+  check_js_file answer.mjs
+  check_js_file reply.mjs
+  check_js_file reason.mjs
+  check_js_file menu.mjs
+  check_js_file view.mjs
+  check_js_file close.mjs
+  check_js_file reset.mjs
+  check_js_file mode.mjs
+  check_js_file cli.mjs
   ok
 
   step_start 6 "Installing Neuro Command"
@@ -187,46 +200,24 @@ NEURO
 success_screen() {
   printf "\n${G}[+]${N} Installation finished successfully!\n\n"
 
-  printf "${C}.:: NeuroClip Command List ::.${N}\n\n"
+  printf "${C}.:: NeuroClip Commands ::.${N}\n\n"
 
   printf "${R}[>]${N} ${C}neuro on${N}\n"
-  printf "    ${Y}Start clipboard watcher / nyalakan agent clipboard${N}\n\n"
-
   printf "${R}[>]${N} ${C}neuro off${N}\n"
-  printf "    ${Y}Stop clipboard watcher / matikan agent clipboard${N}\n\n"
-
   printf "${R}[>]${N} ${C}neuro status${N}\n"
-  printf "    ${Y}Cek status NeuroClip${N}\n\n"
-
   printf "${R}[>]${N} ${C}neuro log${N}\n"
-  printf "    ${Y}Lihat log watcher${N}\n\n"
-
   printf "${R}[>]${N} ${C}neuro mode${N}\n"
-  printf "    ${Y}Cek mode jawaban aktif${N}\n\n"
-
   printf "${R}[>]${N} ${C}neuro mode form${N}\n"
-  printf "    ${Y}Set mode untuk soal/form${N}\n\n"
-
   printf "${R}[>]${N} ${C}neuro mode default${N}\n"
-  printf "    ${Y}Balik ke mode default${N}\n\n"
-
   printf "${R}[>]${N} ${C}neuro clip${N}\n"
-  printf "    ${Y}Jawab isi clipboard sekali${N}\n\n"
-
   printf "${R}[>]${N} ${C}neuro run \"apa itu deforestasi?\"${N}\n"
-  printf "    ${Y}Jawab teks langsung dari command${N}\n\n"
-
   printf "${R}[>]${N} ${C}neuro reset${N}\n"
-  printf "    ${Y}Reset konteks / pending text${N}\n\n"
-
   printf "${R}[>]${N} ${C}neuro reset full${N}\n"
-  printf "    ${Y}Reset total memory NeuroClip${N}\n\n"
-
   printf "${R}[>]${N} ${C}neuro help${N}\n"
-  printf "    ${Y}Tampilkan bantuan command${N}\n\n"
+  printf "${R}[>]${N} ${C}neuro info${N}\n\n"
 
   printf "${G}Flow:${N} ${Y}Copy text ${W}->${Y} Notification ${W}->${Y} Answer ${W}->${Y} Paste${N}\n\n"
-  printf "${G}[+]${N} Ready. Jalankan sekarang:\n"
+  printf "${G}[+]${N} Ready. Start watcher:\n"
   printf "    ${C}neuro on${N}\n\n"
 }
 
