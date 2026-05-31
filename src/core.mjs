@@ -205,6 +205,11 @@ export function markBotOutput(text) {
   mem.last_output_at = Date.now();
   mem.pending_text = "";
 
+  // Penting: jangan biarkan teks user sebelumnya nyangkut.
+  // Setelah jawaban AI masuk clipboard, user boleh copy teks yang sama lagi
+  // dan watcher tetap harus memunculkan notifikasi baru.
+  mem.last_clip_seen = "";
+
   saveMemory(mem);
   return mem;
 }

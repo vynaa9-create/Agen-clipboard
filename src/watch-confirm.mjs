@@ -28,11 +28,16 @@ async function main() {
   while (true) {
     try {
       const mem = loadMemory();
-      const clip = getClipboard();
+      const clip = String(getClipboard() || "").trim();
 
       if (!shouldIgnoreClipboard(clip, mem)) {
         mem.pending_text = clip;
         mem.last_clip_seen = clip;
+
+        // Clipboard baru dari user berarti output AI sebelumnya sudah tidak perlu dikunci.
+        // Ini bikin salin berikutnya tetap kebaca, termasuk kalau teksnya mirip/sama setelah jawab.
+        mem.last_output_clip = "";
+        mem.last_output_at = 0;
 
         // Reset konteks lama saat clipboard baru masuk.
         // Ini mencegah Balas nyangkut ke soal sebelumnya.
