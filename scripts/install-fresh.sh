@@ -1,3 +1,4 @@
+
 #!/data/data/com.termux/files/usr/bin/bash
 set -e
 
@@ -92,11 +93,11 @@ banner
 printf "${C}.:: Fresh Install NeuroClip ::.${N}\n\n"
 
 step_start 1 "Update & Upgrade Packages"
-pkg update -y && pkg upgrade -y > /dev/null 2>&1
+{ pkg update -y && pkg upgrade -y; } > /dev/null 2>&1
 ok
 
 step_start 2 "Install Dependencies"
-pkg install -y nodejs termux-api unzip > /dev/null 2>&1
+{ pkg install -y nodejs termux-api unzip; } > /dev/null 2>&1
 ok
 
 step_start 3 "Preparing Directories"
