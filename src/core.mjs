@@ -1,4 +1,3 @@
-
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -14,51 +13,56 @@ export const APP_NAME = "NeuroClip";
 
 export const DEFAULT_PROVIDERS = {
   chatgpt: {
-    url: "https://api.pixxxry.eu.cc/ai/chatgpt",
-    params: { model: "default" },
-    messageParam: "message",
-    extract: "result.result"
-  },
-  copilot: {
-    url: "https://api.pixxxry.eu.cc/ai/copilot",
-    params: { model: "default" },
-    messageParam: "message",
+    url: "https://api-nanzz.my.id/docs/api/ai/copilot.php",
+    params: {},
+    messageParam: "q",
     extract: "result.text"
   },
-  deepseek: {
-    url: "https://api.pixxxry.eu.cc/ai/deepseek",
-    params: { model: "deepseek-chat", provider: "deepseek" },
-    messageParam: "message",
-    systemParam: "system",
-    extract: "result.result"
-  },
   claude: {
-    url: "https://api.pixxxry.eu.cc/ai/claude",
-    params: { session: "default" },
+    url: "https://api.nexray.eu.cc/ai/claude",
+    params: {},
+    messageParam: "text",
+    extract: "result"
+  },
+  copilot: {
+    url: "https://api-nanzz.my.id/docs/api/ai/copilot.php",
+    params: {},
+    messageParam: "q",
+    extract: "result.text"
+  },
+  gemini: {
+    url: "https://api.soonex.biz.id/v1/ai/gemini",
+    params: {},
+    messageParam: "text",
+    extract: "result"
+  },
+  claude_soonex: {
+    url: "https://api.soonex.biz.id/v1/ai/claude",
+    params: {},
     messageParam: "message",
-    extract: "result.answer"
+    extract: "result"
   }
 };
 
 export const DEFAULT_ROUTES = {
-  default: ["chatgpt", "deepseek", "claude"],
-  form: ["chatgpt", "deepseek", "claude"],
-  pilihanganda: ["chatgpt", "deepseek", "claude"],
-  opsi: ["chatgpt", "deepseek", "claude"],
-  singkat: ["chatgpt", "claude"],
-  sedang: ["chatgpt", "claude"],
-  lengkap: ["chatgpt", "deepseek", "claude"],
-  bahas: ["deepseek", "chatgpt", "claude"],
-  alasan: ["chatgpt", "deepseek", "claude"],
-  sd: ["claude", "chatgpt"],
-  smp: ["claude", "chatgpt"],
-  sma: ["claude", "chatgpt"],
-  formal: ["claude", "chatgpt"],
-  code: ["deepseek", "chatgpt", "copilot"],
-  math: ["deepseek", "chatgpt", "claude"],
-  wa: ["copilot", "claude", "chatgpt"],
-  ringkas: ["copilot", "claude", "chatgpt"],
-  rewrite: ["copilot", "claude", "chatgpt"]
+  default: ["chatgpt", "claude", "gemini"],
+  form: ["chatgpt", "claude", "gemini"],
+  pilihanganda: ["chatgpt", "claude", "gemini"],
+  opsi: ["chatgpt", "claude", "gemini"],
+  singkat: ["chatgpt", "claude", "gemini"],
+  sedang: ["chatgpt", "claude", "gemini"],
+  lengkap: ["claude", "chatgpt", "gemini"],
+  bahas: ["claude", "chatgpt", "gemini"],
+  alasan: ["claude", "chatgpt", "gemini"],
+  sd: ["claude", "chatgpt", "gemini"],
+  smp: ["claude", "chatgpt", "gemini"],
+  sma: ["claude", "chatgpt", "gemini"],
+  formal: ["claude", "chatgpt", "gemini"],
+  code: ["chatgpt", "claude", "gemini"],
+  math: ["claude", "chatgpt", "gemini"],
+  wa: ["copilot", "chatgpt", "claude"],
+  ringkas: ["copilot", "chatgpt", "claude"],
+  rewrite: ["copilot", "chatgpt", "claude"]
 };
 
 export const MODE_PROMPTS = {
@@ -282,35 +286,39 @@ export function extractAnswer(provider, data, conf = {}) {
   const configured = getPathValue(data, conf.extract);
   if (configured != null) return configured;
 
-  if (provider === "chatgpt") return data?.result?.result;
-  if (provider === "deepseek") return data?.result?.result;
-  if (provider === "claude") return data?.result?.answer;
+  if (provider === "chatgpt") return data?.result?.text;
+  if (provider === "claude") return data?.result;
   if (provider === "copilot") return data?.result?.text;
+  if (provider === "gemini") return data?.result;
+  if (provider === "claude_soonex") return data?.result;
 
   return (
+    data?.result?.text ||
     data?.result?.result ||
     data?.result?.answer ||
-    data?.result?.text ||
+    data?.result ||
+    data?.reply ||
     data?.answer ||
     data?.response ||
     data?.message ||
     data?.text ||
-    data?.result ||
     JSON.stringify(data, null, 2)
   );
 }
 
-export function isBadAnswer(answer) {
-  const text = String(answer || "").trim().toLowerCase();
-
-  if (!text) return true;
-  if (text.includes("text is required")) return true;
-  if (text.includes("rate limit")) return true;
-  if (text.includes("too many requests")) return true;
-  if (text.includes("internal server error")) return true;
-  if (text.includes("cannot read")) return true;
-  if (text.includes("undefined")) return true;
-
+export function isBadAnswer(text) {
+  if (!text || typeof text !== "string") return true;
+  const t = text.trim().toLowerCase();
+  if (t.length < 2) return true;
+  if (t.includes("older version of the app")) return true;
+  if (t.includes("update to the latest version")) return true;
+  if (t.includes("undefined")) return true;
+  if (t.startsWith("{") && t.endsWith("}")) return true;
+  if (t.includes("text is required")) return true;
+  if (t.includes("rate limit")) return true;
+  if (t.includes("too many requests")) return true;
+  if (t.includes("internal server error")) return true;
+  if (t.includes("cannot read")) return true;
   return false;
 }
 
