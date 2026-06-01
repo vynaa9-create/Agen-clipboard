@@ -115,21 +115,19 @@ Setelah jawaban muncul, hasil otomatis masuk clipboard dan bisa langsung dipaste
   - jawaban terakhir
   - alasan terakhir
   - state watcher
-- Provider router + fallback.
+- Provider router + fallback otomatis.
 - Support beberapa provider AI:
-  - ChatGPT endpoint
-  - DeepSeek endpoint
-  - Claude endpoint
-  - Copilot endpoint
+  - ChatGPT (via Nanzz Copilot)
+  - Claude (via Nexray)
+  - Copilot (via Nanzz)
+  - Gemini (via Soonex)
+  - Claude Soonex (backup)
   - provider custom dari `config/providers.json`
 - Mode jawaban fleksibel.
 - Support Termux:API.
 - Support Termux:Widget.
 - Support MacroDroid.
 - Bisa dipakai tanpa root.
-- Cocok untuk Android workflow.
-- Cocok untuk soal, pertanyaan, rewrite, ringkasan, coding, dan prompt cepat.
-- Cocok untuk workflow copy → jawab → paste.
 
 ---
 
@@ -189,17 +187,25 @@ Contoh fungsi mode:
 
 ```bash
 pkg update -y
-pkg install nodejs termux-api git -y
+pkg install nodejs termux-api git unzip -y
 termux-setup-storage
 
 git clone https://github.com/vynaa9-create/Agen-clipboard.git
 cd Agen-clipboard
 
-bash scripts/setup-termux.sh
+bash scripts/install-fresh.sh
 neuro on
 ```
 
-Setelah itu tinggal salin teks, tap notifikasi NeuroClip, lalu pilih menu.
+Atau tanpa git, download zip lalu:
+
+```bash
+cp /sdcard/Download/Agen-clipboard-fixed.zip ~/
+cd ~
+unzip -o Agen-clipboard-fixed.zip -d Agen-clipboard
+cd Agen-clipboard
+bash scripts/install-fresh.sh
+```
 
 ---
 
@@ -211,14 +217,6 @@ Install aplikasi berikut di Android:
 - Termux:API
 - Termux:Widget, opsional
 - MacroDroid, opsional
-
-Package Termux:
-
-```bash
-pkg update -y
-pkg install nodejs termux-api git -y
-termux-setup-storage
-```
 
 Pastikan clipboard jalan:
 
@@ -233,32 +231,7 @@ Pastikan notifikasi jalan:
 termux-notification --title "TEST" --content "Notif hidup"
 ```
 
-Kalau notifikasi tidak muncul, aktifkan permission notifikasi untuk:
-
-- Termux
-- Termux:API
-
----
-
-## ✦ Install dari GitHub
-
-```bash
-git clone https://github.com/vynaa9-create/Agen-clipboard.git
-cd Agen-clipboard
-bash scripts/setup-termux.sh
-```
-
-Cek status:
-
-```bash
-neuro status
-```
-
-Aktifkan watcher:
-
-```bash
-neuro on
-```
+Kalau notifikasi tidak muncul, aktifkan permission notifikasi untuk Termux dan Termux:API.
 
 ---
 
@@ -323,8 +296,6 @@ neuro run "siapa presiden ke 2 indonesia"
 neuro clip
 ```
 
-Keterangan:
-
 | Command | Fungsi |
 |---|---|
 | `neuro on` | aktifkan clipboard watcher |
@@ -341,42 +312,99 @@ Keterangan:
 
 ---
 
-## ✦ Contoh Command
+## ✦ Provider AI
 
-Jawab teks langsung:
+Endpoint dikonfigurasi di:
 
-```bash
-neuro run "siapa presiden ke 2 indonesia"
+```txt
+config/providers.json
 ```
 
-Jawab isi clipboard:
+Provider aktif:
+
+| Provider | URL | Cocok Untuk |
+|---|---|---|
+| `chatgpt` | api-nanzz.my.id/copilot | default, form, pilihan ganda |
+| `claude` | api.nexray.eu.cc/claude | deep, lengkap, SMA, formal |
+| `copilot` | api-nanzz.my.id/copilot | rewrite, ringkas, WA |
+| `gemini` | api.soonex.biz.id/gemini | backup umum |
+| `claude_soonex` | api.soonex.biz.id/claude | backup claude |
+
+Fallback otomatis jika provider pertama gagal.
+
+Contoh route:
+
+```txt
+default     → chatgpt → claude → gemini
+lengkap     → claude → chatgpt → gemini
+sma         → claude → chatgpt → gemini
+ringkas     → copilot → chatgpt → claude
+code        → chatgpt → claude → gemini
+```
+
+---
+
+## ✦ Provider Router
+
+| Mode | Urutan Provider |
+|---|---|
+| `default` | chatgpt → claude → gemini |
+| `form` | chatgpt → claude → gemini |
+| `pilihanganda` | chatgpt → claude → gemini |
+| `singkat` | chatgpt → claude → gemini |
+| `lengkap` | claude → chatgpt → gemini |
+| `bahas` | claude → chatgpt → gemini |
+| `sma` | claude → chatgpt → gemini |
+| `code` | chatgpt → claude → gemini |
+| `wa` | copilot → chatgpt → claude |
+| `ringkas` | copilot → chatgpt → claude |
+
+---
+
+## ✦ Termux:Widget
+
+Buat shortcut widget:
 
 ```bash
+bash scripts/setup-widget.sh
+```
+
+Shortcut yang tersedia:
+
+```txt
+neuro-on
+neuro-off
+neuro-answer
+neuro-reply
+neuro-reason
+neuro-menu
+neuro-view
+neuro-close
+neuro-reset
+```
+
+---
+
+## ✦ MacroDroid
+
+Contoh trigger MacroDroid:
+
+```txt
+Action:
+Run Termux Command
+
+Command:
 neuro clip
 ```
 
-Aktifkan watcher:
+---
 
-```bash
-neuro on
-```
+## ✦ File Memory
 
-Matikan watcher:
+Memory lokal disimpan di:
 
-```bash
-neuro off
-```
-
-Cek status:
-
-```bash
-neuro status
-```
-
-Lihat log:
-
-```bash
-neuro log
+```txt
+~/.neuroclip/memory.json
 ```
 
 Reset konteks:
@@ -391,332 +419,11 @@ Reset total:
 neuro reset full
 ```
 
-Set mode:
-
-```bash
-neuro mode sd
-neuro mode form
-neuro mode pilihanganda
-neuro mode singkat
-neuro mode lengkap
-neuro mode code
-```
-
----
-
-## ✦ Mode Memory
-
-Mode aktif disimpan di memory lokal:
-
-```txt
-~/.neuroclip/memory.json
-```
-
-Jadi cukup set sekali:
-
-```bash
-neuro mode form
-```
-
-Setelah itu semua teks yang disalin akan diproses sebagai mode form sampai mode diganti lagi.
-
-Contoh:
-
-```bash
-neuro mode form
-```
-
-Lalu salin teks:
-
-```txt
-Pengakuan dan perlindungan HAM memiliki arti bahwa ....
-A. setiap manusia punya persamaan kedudukan dalam hukum
-B. hukum hanya berlaku untuk pejabat
-C. HAM tidak perlu dilindungi
-D. warga negara tidak punya hak
-```
-
-NeuroClip akan memproses teks tersebut dengan mode form.
-
-Balik ke default:
-
-```bash
-neuro mode default
-```
-
----
-
-## ✦ Menu Balas
-
-Saat notif muncul, tap body notif lalu isi salah satu:
-
-```txt
-jawab
-balas
-alasan
-lihat
-tutup
-reset
-reset full
-mode form
-mode sd
-mode pilihan ganda
-```
-
-Atau pakai instruksi natural:
-
-```txt
-apa arti dalam kbbi
-kenapa bukan A?
-jelaskan lebih singkat
-buat bahasa anak SD
-ada pembahasan lain
-ubah ke bahasa Inggris
-buat versi WhatsApp
-jawab ringkas saja
-jelaskan alasannya
-ubah ke bahasa formal
-```
-
----
-
-## ✦ Provider AI
-
-Endpoint dikonfigurasi di:
-
-```txt
-config/providers.json
-```
-
-Default provider bisa diarahkan sesuai kebutuhan.
-
-Contoh struktur provider:
-
-```json
-{
-  "providers": [
-    {
-      "name": "chatgpt",
-      "type": "get-query",
-      "url": "https://example.com/api/chatgpt",
-      "param": "text",
-      "enabled": true
-    }
-  ]
-}
-```
-
-Tambah provider lain:
-
-```json
-{
-  "name": "provider-2",
-  "type": "post-json",
-  "url": "https://example.com/api/ai",
-  "enabled": true
-}
-```
-
-Tipe provider yang didukung:
-
-| Type | Fungsi |
-|---|---|
-| `get-query` | prompt dikirim lewat query param |
-| `post-json` | prompt dikirim lewat JSON body |
-
----
-
-## ✦ Provider Router + Fallback
-
-Default router:
-
-| Provider | Cocok Untuk |
-|---|---|
-| `chatgpt` | default, form, pilihan ganda, fakta umum |
-| `deepseek` | coding, matematika, logika |
-| `claude` | bahasa natural, SD/SMP/SMA, formal |
-| `copilot` | rewrite, ringkas, WhatsApp |
-
-Contoh fallback:
-
-```txt
-form     → chatgpt → deepseek → claude
-code     → deepseek → chatgpt → copilot
-sd       → claude → chatgpt
-ringkas  → copilot → claude → chatgpt
-```
-
-Kalau provider pertama gagal, NeuroClip otomatis mencoba provider berikutnya.
-
----
-
-## ✦ Termux:Widget
-
-Buat shortcut widget:
-
-```bash
-bash scripts/setup-widget.sh
-```
-
-Di home screen Android:
-
-```txt
-Tahan layar kosong
-↓
-Widget
-↓
-Termux:Widget
-↓
-Pilih shortcut NeuroClip
-```
-
-Shortcut yang biasa dipakai:
-
-```txt
-neuro-on
-neuro-off
-neuro-answer
-neuro-reply
-neuro-reset
-```
-
-Flow widget:
-
-```txt
-Salin pertanyaan
-↓
-Tap widget neuro-answer
-↓
-Jawaban masuk clipboard + notif
-↓
-Paste
-```
-
-Flow watcher:
-
-```txt
-Tap widget neuro-on
-↓
-Salin teks
-↓
-Notif NeuroClip muncul
-↓
-Pilih Jawab / Balas / Tutup
-```
-
----
-
-## ✦ MacroDroid
-
-NeuroClip bisa digabungkan dengan MacroDroid untuk automation tambahan.
-
-Contoh flow:
-
-```txt
-Trigger MacroDroid
-↓
-Kirim command ke Termux
-↓
-NeuroClip membaca clipboard
-↓
-AI menjawab
-↓
-Hasil masuk clipboard + notifikasi
-```
-
-MacroDroid bersifat opsional, tapi cocok untuk:
-
-- shortcut custom
-- tombol floating
-- gesture
-- trigger otomatis
-- integrasi workflow Android
-
----
-
-## ✦ Server Lokal untuk MacroDroid
-
-Versi ini tidak memakai command `neuro server`.
-
-Untuk MacroDroid, pakai command Termux langsung:
-
-```bash
-neuro clip
-```
-
-Atau untuk mengaktifkan watcher:
-
-```bash
-neuro on
-```
-
-Contoh trigger MacroDroid:
-
-```txt
-Action:
-Run Termux Command
-
-Command:
-neuro clip
-```
-
-Run dari clipboard:
-
-```bash
-neuro clip
-```
-
-Run dengan teks langsung:
-
-```bash
-neuro run "apa dampak deforestasi?"
-```
-
-Contoh hasil:
-
-```txt
-Dampak deforestasi adalah lingkungan menjadi lebih panas, habitat hewan rusak, dan tanah lebih mudah longsor.
-```
-
----
-
-## ✦ File Memory
-
-Memory lokal disimpan di:
-
-```txt
-~/.neuroclip/memory.json
-```
-
-Memory dipakai untuk menyimpan:
-
-```txt
-mode aktif
-pending text
-jawaban terakhir
-alasan terakhir
-state watcher
-status busy
-proteksi loop
-```
-
-Kalau context terasa nyangkut, gunakan:
-
-```bash
-neuro reset
-```
-
-Untuk reset total:
-
-```bash
-neuro reset full
-```
-
 ---
 
 ## ✦ Tips Stabil di Oppo / ColorOS / Xiaomi / Vivo
 
-Agar watcher tidak mati sendiri, matikan battery optimization untuk:
+Matikan battery optimization untuk:
 
 - Termux
 - Termux:API
@@ -729,32 +436,7 @@ Aktifkan jika tersedia:
 Allow background activity
 Autostart
 Izinkan notifikasi
-Izinkan tampil di latar belakang
 Jangan batasi penggunaan baterai
-```
-
-Aktifkan watcher:
-
-```bash
-neuro on
-```
-
-Cek status:
-
-```bash
-neuro status
-```
-
-Lihat log:
-
-```bash
-neuro log
-```
-
-Matikan watcher:
-
-```bash
-neuro off
 ```
 
 ---
@@ -763,116 +445,31 @@ neuro off
 
 ### Clipboard tidak terbaca
 
-Test manual:
-
 ```bash
 termux-clipboard-set "tes"
 termux-clipboard-get
 ```
 
-Kalau error:
-
-- pastikan Termux:API sudah terinstall
-- buka Termux:API minimal sekali
-- beri izin akses yang diminta
-- restart Termux
+Kalau error: pastikan Termux:API terinstall, beri izin akses, restart Termux.
 
 ---
 
 ### Notifikasi tidak muncul
 
-Test:
-
 ```bash
 termux-notification --title "TEST" --content "Notif hidup"
 ```
 
-Kalau tidak muncul:
-
-- cek izin notifikasi Termux
-- cek izin notifikasi Termux:API
-- cek battery optimization
-- restart Termux
-- buka pengaturan aplikasi dan aktifkan semua permission yang dibutuhkan
-
----
-
-### Tombol notif tidak kelihatan
-
-Di beberapa HP, tombol hanya muncul kalau panel notifikasi ditarik atau di-expand.
-
-Solusi:
-
-```txt
-Tarik panel notifikasi
-↓
-Expand notifikasi NeuroClip
-↓
-Pilih Jawab / Balas / Tutup
-```
-
-Atau:
-
-```txt
-Tap body notif
-↓
-Menu modular terbuka
-```
+Kalau tidak muncul: cek izin notifikasi Termux dan Termux:API, cek battery optimization.
 
 ---
 
 ### Watcher mati sendiri
 
-Cek status:
-
 ```bash
 neuro status
-```
-
-Lihat log:
-
-```bash
 neuro log
-```
-
-Solusi umum:
-
-- matikan optimasi baterai
-- izinkan Termux jalan di background
-- izinkan Termux:API
-- aktifkan kembali watcher
-
-```bash
 neuro off
-neuro on
-```
-
----
-
-### Jawaban masuk lagi ke AI berulang
-
-Matikan watcher dulu:
-
-```bash
-neuro off
-```
-
-Reset state:
-
-```bash
-neuro reset
-```
-
-Nyalakan lagi:
-
-```bash
-neuro on
-```
-
-Kalau masih nyangkut:
-
-```bash
-neuro reset full
 neuro on
 ```
 
@@ -880,68 +477,30 @@ neuro on
 
 ### Jawaban nyangkut ke konteks lama
 
-Gunakan:
-
 ```bash
 neuro reset
-```
-
-Atau lewat menu notifikasi:
-
-```txt
-reset
+neuro on
 ```
 
 Reset total:
 
 ```bash
 neuro reset full
-```
-
----
-
-### Mode salah
-
-Cek mode aktif:
-
-```bash
-neuro mode
-```
-
-Ubah ke default:
-
-```bash
-neuro mode default
-```
-
-Atau ubah ke mode tertentu:
-
-```bash
-neuro mode sd
-neuro mode form
-neuro mode code
+neuro on
 ```
 
 ---
 
 ### Provider error
 
-Lihat log:
-
 ```bash
 neuro log
 ```
 
-Edit provider:
-
-```txt
-config/providers.json
-```
-
-Lalu ulangi setup:
+Edit provider di `config/providers.json` lalu ulangi setup:
 
 ```bash
-bash scripts/setup-termux.sh
+bash scripts/install-fresh.sh
 ```
 
 ---
@@ -953,116 +512,42 @@ Agen-clipboard/
 ├── src/
 │   ├── core.mjs
 │   ├── cli.mjs
+│   ├── watch-confirm.mjs
 │   ├── watch.mjs
-│   ├── server.mjs
-│   └── mode.mjs
+│   ├── answer.mjs
+│   ├── reply.mjs
+│   ├── reason.mjs
+│   ├── menu.mjs
+│   ├── view.mjs
+│   ├── close.mjs
+│   ├── reset.mjs
+│   ├── mode.mjs
+│   └── server.mjs
 ├── scripts/
+│   ├── install-fresh.sh
 │   ├── setup-termux.sh
 │   └── setup-widget.sh
 ├── config/
 │   └── providers.json
 ├── package.json
 ├── README.md
-├── LICENSE
-└── .gitignore
+└── LICENSE
 ```
-
-Jika struktur project berbeda, sesuaikan bagian ini dengan isi repo terbaru.
-
----
-
-## ✦ NPM Scripts
-
-Script yang tersedia di `package.json`:
-
-```json
-{
-  "scripts": {
-    "check": "node --check src/core.mjs && node --check src/watch-confirm.mjs && node --check src/answer.mjs && node --check src/reply.mjs && node --check src/menu.mjs && node --check src/reason.mjs && node --check src/view.mjs && node --check src/reset.mjs && node --check src/mode.mjs && node --check src/cli.mjs",
-    "start": "node src/watch-confirm.mjs",
-    "run": "node src/cli.mjs run",
-    "status": "node src/cli.mjs status"
-  }
-}
-```
-
-Jalankan manual:
-
-```bash
-npm run check
-npm run status
-npm run run -- "apa dampak deforestasi?"
-npm start
-```
-
-Command utama tetap:
-
-```bash
-neuro on
-neuro off
-neuro status
-neuro log
-neuro mode
-neuro run "teks"
-neuro clip
-```
-
----
-
-## ✦ Push ke GitHub
-
-```bash
-git init
-git add .
-git commit -m "Initial NeuroClip Agent"
-git branch -M main
-git remote add origin https://github.com/username/neuroclip-agent.git
-git push -u origin main
-```
-
-Kalau pakai repo yang sudah ada:
-
-```bash
-git remote add origin https://github.com/vynaa9-create/Agen-clipboard.git
-git branch -M main
-git push -u origin main
-```
-
----
-
-## ✦ Roadmap
-
-- Screenshot mode.
-- OCR mode.
-- Gemini Vision / provider multimodal.
-- Provider session rotation.
-- MacroDroid preset export.
-- Widget shortcut lebih lengkap.
-- UI overlay kecil.
-- Mode school helper yang lebih stabil.
-- Mode jawaban super ringkas untuk notifikasi kecil.
-- Dokumentasi setup per brand Android.
-- Preview GIF workflow.
-- Backup/restore memory lokal.
 
 ---
 
 ## ✦ Catatan
 
 - Semua memory disimpan lokal.
-- Public endpoint bisa mati kapan saja.
-- Endpoint AI dapat berubah sewaktu-waktu.
+- Public endpoint bisa mati kapan saja, ganti di `config/providers.json`.
 - Jangan gunakan untuk spam endpoint.
 - Gunakan untuk workflow pribadi, belajar, testing automation, dan eksperimen Android + Termux.
 - Project ini tidak membutuhkan root.
-- MacroDroid bersifat opsional.
-- Termux:Widget bersifat opsional, tapi direkomendasikan untuk shortcut cepat.
+- MacroDroid dan Termux:Widget bersifat opsional.
 
 ---
 
 ## ✦ Lisensi
-
-Project ini menggunakan lisensi open-source.
 
 ```txt
 MIT
