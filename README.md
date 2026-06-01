@@ -11,13 +11,7 @@
   <img src="https://img.shields.io/badge/Automation-MacroDroid-39d353?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Open%20Source-Yes-39d353?style=for-the-badge" />
 </p>---
-
-✦ Preview Instalasi Termux
-
-«Simpan screenshot instalasi di repo sebagai:
-
-assets/install-preview.jpg»
-
+✦ ### PREVIWE 
 <p align="center">
   <img src="https://raw.githubusercontent.com/vynaa9-create/Agen-clipboard/refs/heads/main/src/Screenshot_2026-05-31-20-08-37-62.png" alt="NeuroClip Install Preview" width="100%" />
 </p>✦ Tentang NeuroClip
