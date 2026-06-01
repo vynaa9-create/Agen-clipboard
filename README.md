@@ -19,7 +19,7 @@
 assets/install-preview.jpg»
 
 <p align="center">
-  <img src="./assets/install-preview.jpg" alt="NeuroClip Install Preview" width="100%" />
+  <img src="https://raw.githubusercontent.com/vynaa9-create/Agen-clipboard/refs/heads/main/src/Screenshot_2026-05-31-20-08-37-62.png" alt="NeuroClip Install Preview" width="100%" />
 </p>✦ Tentang NeuroClip
 
 NeuroClip adalah clipboard AI copilot untuk Android + Termux.
