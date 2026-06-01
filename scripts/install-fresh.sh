@@ -1,4 +1,3 @@
-
 #!/data/data/com.termux/files/usr/bin/bash
 set -e
 
@@ -92,25 +91,17 @@ success_screen() {
 banner
 printf "${C}.:: Fresh Install NeuroClip ::.${N}\n\n"
 
-step_start 1 "Update & Upgrade Packages"
-{ pkg update -y && pkg upgrade -y; } > /dev/null 2>&1
-ok
-
-step_start 2 "Install Dependencies"
-{ pkg install -y nodejs termux-api unzip; } > /dev/null 2>&1
-ok
-
-step_start 3 "Preparing Directories"
+step_start 1 "Preparing Directories"
 mkdir -p "$APP_DIR/src" "$APP_DIR/config" "$HOME/.shortcuts"
 ok
 
-step_start 4 "Copying Source Files"
+step_start 2 "Copying Source Files"
 cp -f "$SRC_DIR/src/"*.mjs "$APP_DIR/src/"
 cp -f "$SRC_DIR/config/providers.json" "$APP_DIR/providers.json"
 cp -f "$SRC_DIR/config/providers.json" "$APP_DIR/config/providers.json"
 ok
 
-step_start 5 "Installing Neuro Command"
+step_start 3 "Installing Neuro Command"
 cat > "$PREFIX/bin/neuro" << 'NEURO'
 #!/data/data/com.termux/files/usr/bin/bash
 node "$HOME/.neuroclip/src/cli.mjs" "$@"
@@ -118,7 +109,7 @@ NEURO
 chmod +x "$PREFIX/bin/neuro"
 ok
 
-step_start 6 "Creating Notification Shortcuts"
+step_start 4 "Creating Notification Shortcuts"
 write_shortcut "neuro-answer"  'node "$HOME/.neuroclip/src/answer.mjs"  >> "$HOME/neuroclip.log" 2>&1'
 write_shortcut "neuro-reply"   'node "$HOME/.neuroclip/src/reply.mjs"   >> "$HOME/neuroclip.log" 2>&1'
 write_shortcut "neuro-reason"  'node "$HOME/.neuroclip/src/reason.mjs"  >> "$HOME/neuroclip.log" 2>&1'
@@ -130,7 +121,7 @@ write_shortcut "neuro-on"      'neuro on'
 write_shortcut "neuro-off"     'neuro off'
 ok
 
-step_start 7 "Verifying Installation"
+step_start 5 "Verifying Installation"
 test -f "$APP_DIR/src/cli.mjs"
 test -f "$APP_DIR/src/core.mjs"
 test -f "$APP_DIR/providers.json"
