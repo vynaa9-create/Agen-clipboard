@@ -2,132 +2,64 @@
   "base_notes": "Provider publik. Ganti URL jika endpoint berubah.",
   "providers": {
     "chatgpt": {
-      "url": "https://api.pixxxry.eu.cc/ai/chatgpt",
+      "url": "https://api-nanzz.my.id/docs/api/ai/copilot.php",
       "method": "GET",
-      "message_param": "message",
-      "params": {
-        "model": "default"
-      },
-      "extract": "result.result",
-      "role": "Default, form, pilihan ganda, fakta umum"
+      "message_param": "q",
+      "params": {},
+      "extract": "result.text",
+      "role": "Default, form, pilihan ganda, fakta umum, santai"
+    },
+    "claude": {
+      "url": "https://api.nexray.eu.cc/ai/claude",
+      "method": "GET",
+      "message_param": "text",
+      "params": {},
+      "extract": "result",
+      "role": "Deep, lengkap, SD/SMP/SMA, formal, bahas"
     },
     "copilot": {
-      "url": "https://api.pixxxry.eu.cc/ai/copilot",
+      "url": "https://api-nanzz.my.id/docs/api/ai/copilot.php",
       "method": "GET",
-      "message_param": "message",
-      "params": {
-        "model": "default"
-      },
+      "message_param": "q",
+      "params": {},
       "extract": "result.text",
       "role": "Rewrite, ringkas, WhatsApp, parafrase"
     },
-    "deepseek": {
-      "url": "https://api.pixxxry.eu.cc/ai/deepseek",
+    "gemini": {
+      "url": "https://api.soonex.biz.id/v1/ai/gemini",
       "method": "GET",
-      "message_param": "message",
-      "params": {
-        "model": "deepseek-chat",
-        "provider": "deepseek"
-      },
-      "system_param": "system",
-      "extract": "result.result",
-      "role": "Coding, matematika, logika, reasoning teknis"
+      "message_param": "text",
+      "params": {},
+      "extract": "result",
+      "role": "Backup umum"
     },
-    "claude": {
-      "url": "https://api.pixxxry.eu.cc/ai/claude",
+    "claude_soonex": {
+      "url": "https://api.soonex.biz.id/v1/ai/claude",
       "method": "GET",
       "message_param": "message",
-      "params": {
-        "session": "default"
-      },
-      "extract": "result.answer",
-      "role": "Bahasa natural, SD/SMP/SMA, formal, lengkap"
+      "params": {},
+      "extract": "result",
+      "role": "Backup claude"
     }
   },
   "routes": {
-    "default": [
-      "chatgpt",
-      "deepseek",
-      "claude"
-    ],
-    "form": [
-      "chatgpt",
-      "deepseek",
-      "claude"
-    ],
-    "pilihanganda": [
-      "chatgpt",
-      "deepseek",
-      "claude"
-    ],
-    "opsi": [
-      "chatgpt",
-      "deepseek",
-      "claude"
-    ],
-    "singkat": [
-      "chatgpt",
-      "claude"
-    ],
-    "sedang": [
-      "chatgpt",
-      "claude"
-    ],
-    "lengkap": [
-      "chatgpt",
-      "deepseek",
-      "claude"
-    ],
-    "bahas": [
-      "deepseek",
-      "chatgpt",
-      "claude"
-    ],
-    "alasan": [
-      "chatgpt",
-      "deepseek",
-      "claude"
-    ],
-    "sd": [
-      "claude",
-      "chatgpt"
-    ],
-    "smp": [
-      "claude",
-      "chatgpt"
-    ],
-    "sma": [
-      "claude",
-      "chatgpt"
-    ],
-    "formal": [
-      "claude",
-      "chatgpt"
-    ],
-    "code": [
-      "deepseek",
-      "chatgpt",
-      "copilot"
-    ],
-    "math": [
-      "deepseek",
-      "chatgpt",
-      "claude"
-    ],
-    "wa": [
-      "copilot",
-      "claude",
-      "chatgpt"
-    ],
-    "ringkas": [
-      "copilot",
-      "claude",
-      "chatgpt"
-    ],
-    "rewrite": [
-      "copilot",
-      "claude",
-      "chatgpt"
-    ]
+    "default": ["chatgpt", "claude", "gemini"],
+    "form": ["chatgpt", "claude", "gemini"],
+    "pilihanganda": ["chatgpt", "claude", "gemini"],
+    "opsi": ["chatgpt", "claude", "gemini"],
+    "singkat": ["chatgpt", "claude", "gemini"],
+    "sedang": ["chatgpt", "claude", "gemini"],
+    "lengkap": ["claude", "chatgpt", "gemini"],
+    "bahas": ["claude", "chatgpt", "gemini"],
+    "alasan": ["claude", "chatgpt", "gemini"],
+    "sd": ["claude", "chatgpt", "gemini"],
+    "smp": ["claude", "chatgpt", "gemini"],
+    "sma": ["claude", "chatgpt", "gemini"],
+    "formal": ["claude", "chatgpt", "gemini"],
+    "code": ["chatgpt", "claude", "gemini"],
+    "math": ["claude", "chatgpt", "gemini"],
+    "wa": ["copilot", "chatgpt", "claude"],
+    "ringkas": ["copilot", "chatgpt", "claude"],
+    "rewrite": ["copilot", "chatgpt", "claude"]
   }
 }
